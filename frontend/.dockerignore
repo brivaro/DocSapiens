@@ -1,0 +1,15 @@
+# Ignorar las dependencias de Node.js, se instalarán dentro del contenedor
+node_modules
+
+# Ignorar la carpeta de compilación de producción, se generará dentro del contenedor
+dist
+build
+
+# Ignorar archivos de log y de entorno local
+*.log
+.env
+.env.local
+
+# Ignorar archivos específicos de los gestores de paquetes
+npm-debug.log
+pnpm-debug.log

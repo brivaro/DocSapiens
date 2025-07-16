@@ -1,0 +1,27 @@
+fastapi
+uvicorn
+python-multipart
+sqlalchemy
+pydantic
+langchain
+openai
+qdrant-client  # o pinecone-client, chromadb
+tiktoken
+PyMuPDF # fitz y docx ya están cubiertos por PyMuPDF y python-docx
+python-docx
+pdfplumber
+pandas
+openpyxl
+xlrd
+python-pptx
+aiofiles
+python-jose[cryptography]  # JWT
+passlib[bcrypt]
+celery
+redis
+loguru
+httpx
+protobuf==5.26.1
+psycopg2-binary
+google-generativeai # para la API de Gemini
+google-cloud-aiplatform # para los embeddings gestionados
