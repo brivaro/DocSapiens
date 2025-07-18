@@ -27,11 +27,11 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
                         for page_num, page in enumerate(doc):
                             page_text = page.get_text("text")
                             if page_text.strip():
-                                chunks.append({"document_id": doc_id, "chunk_id": idx, "text": f"Página {page_num + 1}:\n{page_text}", "start": 0, "end": 0})
+                                chunks.append(
+                                    create_chunk_to_list(doc_id, idx, page_text, 0, 0, split_mode, file_type, page_num)
+                                )
                                 idx += 1
-                    
-                    documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
-                    return documentchunks
+                    return chunks
 
                 # Caso 2: Excel (cada hoja es un chunk)
                 elif file_type in ["xlsx", "xls"]:
@@ -40,11 +40,11 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
                     for sheet_name, df in xls.items():
                         sheet_text = df.to_string(index=False)
                         if sheet_text.strip():
-                            chunks.append({"document_id": doc_id, "chunk_id": idx, "text": f"Hoja: {sheet_name}\n{sheet_text}", "start": 0, "end": 0})
+                            chunks.append(
+                                create_chunk_to_list(doc_id, idx, sheet_text, 0, 0, split_mode, file_type, page_name=sheet_name)
+                            )
                             idx += 1
-                    
-                    documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
-                    return documentchunks
+                    return chunks
                 
                 # Caso 3: PowerPoint (cada diapositiva es un chunk)
                 elif file_type == "pptx":
@@ -58,11 +58,11 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
                         
                         full_slide_text = "\n".join(slide_text)
                         if full_slide_text.strip():
-                            chunks.append({"document_id": doc_id, "chunk_id": idx, "text": f"Diapositiva {i + 1}:\n{full_slide_text}", "start": 0, "end": 0})
+                            chunks.append(
+                                create_chunk_to_list(doc_id, idx, full_slide_text, 0, 0, split_mode, file_type, page_num=i)
+                            )
                             idx += 1
-                    
-                    documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
-                    return documentchunks
+                    return chunks
                 
                 else:
                     print(f"[WARNING] No se puede dividir por páginas para el tipo '{file_type}'. Se usará el modo delimitador.")
@@ -78,11 +78,12 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
             while pos < text_len:
                 end = min(pos + chunk_size, text_len)
                 chunk_text = text[pos:end]
-                chunks.append({ "document_id": doc_id, "chunk_id": idx, "text": chunk_text, "start": pos, "end": end })
+                chunks.append(
+                    create_chunk_to_list(doc_id, idx, chunk_text, pos, end, split_mode)
+                )
                 pos += chunk_size - overlap
                 idx += 1
-            documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
-            return documentchunks
+            return chunks
 
         # Modo por defecto y fallback: "delimiter"
         print(f"[INFO] Dividiendo texto por delimitador '{split_by}'.")
@@ -91,8 +92,27 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
             if part.strip():
                 start = text.find(part, pos)
                 end = start + len(part)
-                chunks.append({ "document_id": doc_id, "chunk_id": idx, "text": part, "start": start, "end": end })
+                chunks.append(
+                    create_chunk_to_list(doc_id, idx, part, start, end, split_mode)
+                )
                 pos = end
                 idx += 1
-        documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
-        return documentchunks
+        return chunks
+
+def create_chunk_to_list(
+        doc_id: str, idx: int, text: str, 
+        start: int, end: int, mode: str, 
+        file_type: str = "", 
+        page_num: int = 0, page_name: str = ""
+) -> DocumentChunk:
+    """
+    Helper function to append a new chunk to the list of chunks.
+    """
+    if mode == "pages":
+        if file_type == "pdf":
+            text = f"Página {page_num + 1}:\n{text}"
+        elif file_type in ["xlsx", "xls"]:
+            text = f"Hoja: {page_name}\n{text}"
+        elif file_type == "pptx":
+            text = f"Diapositiva {page_num + 1}:\n{text}"
+    return DocumentChunk(document_id=doc_id, chunk_id=idx, text=text, start=start, end=end)

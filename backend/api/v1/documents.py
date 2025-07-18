@@ -17,7 +17,8 @@ def upload_document(
     chunk_size: Optional[int] = Form(None),
     overlap: Optional[int] = Form(0),
     tags: Optional[str] = Form(None) 
-):
+) -> DocumentResponse:
+    
     content = file.file.read()
     # TODO: Validar el tamaño del archivo
     # Descomentar si se desea limitar el tamaño del archivo
@@ -50,15 +51,15 @@ def upload_document(
     )
 
 @router.get("/", response_model=list[DocumentResponse])
-def list_documents():
+def list_documents() -> list[DocumentResponse]:
     return document_service.list_documents()
 
 @router.get("/{doc_id}/chunks/", response_model=list[DocumentChunk]) 
-def get_document_chunks_endpoint(doc_id: str):
+def get_document_chunks_endpoint(doc_id: str) -> list[DocumentChunk]:
     return document_service.get_document_chunks(doc_id)
 
-@router.delete("/{doc_id}/", status_code=204)
-def delete_document_endpoint(doc_id: str):
+@router.delete("/{doc_id}/", status_code=200)
+def delete_document_endpoint(doc_id: str) -> dict:
     try:
         document_service.delete_document(doc_id)
         return {"status": "success"}

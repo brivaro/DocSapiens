@@ -6,7 +6,7 @@ from backend.models.document import DocumentChunk, DocumentCreate
 import vertexai
 from vertexai.language_models import TextEmbeddingModel
 from typing import List
-import google.genai as genai
+from google import genai
 
 # --- Configuración ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -14,7 +14,7 @@ MODEL_NAME = "text-embedding-004"
 
 # --- Configuración de la API Key ---
 try:
-    genai.configure(api_key=GOOGLE_API_KEY)
+    client = genai.Client()
 except Exception as e:
     print(f"[ERROR] Error al configurar la API de Google Generative AI: {e}")
 
@@ -28,7 +28,7 @@ class EmbeddingService:
             return []
         try:
             # El modelo se especifica en la llamada
-            result = genai.embed_content(
+            result = client.models.embed_content(
                 model=f"models/{MODEL_NAME}",
                 content=texts,
                 task_type="RETRIEVAL_DOCUMENT" # O el tipo de tarea que necesites: https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/task-types?hl=es-419
