@@ -34,7 +34,7 @@ def _get_file_type(filename: str, content_type: str) -> str:
     
 def _extract_text_from_content(content: bytes, content_type: str, filename: str) -> str:
         file_type = _get_file_type(filename, content_type)
-        print(f"Tipo de archivo determinado como: {file_type}")
+        print(f"[INFO] Tipo de archivo determinado como: {file_type}")
 
         try:
             if file_type == "pdf":
@@ -78,8 +78,8 @@ def _extract_text_from_content(content: bytes, content_type: str, filename: str)
                 return df.to_string(index=False)
 
             else: # file_type == "unsupported"
-                print(f"ADVERTENCIA: Tipo de archivo no soportado '{content_type}' para el archivo '{filename}'. No se extraerá texto.")
+                print(f"[WARNING] Tipo de archivo no soportado '{content_type}' para el archivo '{filename}'. No se extraerá texto.")
                 return "[Unsupported file type for text extraction]"
         except Exception as e:
-            print(f"ERROR: No se pudo extraer texto del archivo '{filename}' (tipo: {file_type}). Error: {e}")
+            print(f"[ERROR] No se pudo extraer texto del archivo '{filename}' (tipo: {file_type}). Error: {e}")
             return f"[Error extracting text: {e}]"

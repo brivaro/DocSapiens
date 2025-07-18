@@ -1,8 +1,9 @@
+from typing import List
 from backend.processing.extractor import _get_file_type
 import io, fitz, pandas as pd, pptx
-from backend.models.document import DocumentCreate
+from backend.models.document import DocumentChunk, DocumentCreate
 
-def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> list:
+def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[DocumentChunk]:
         split_mode = doc_model.split_mode
         split_by = doc_model.split_by
         chunk_size = doc_model.chunk_size
@@ -17,7 +18,7 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> list:
 
         if split_mode == "pages":
             file_type = _get_file_type(filename, content_type)
-            print(f"Dividiendo por páginas para el tipo de archivo: {file_type}")
+            print(f"[INFO] Dividiendo por páginas para el tipo de archivo: {file_type}")
 
             try:
                 # Caso 1: PDF (cada página es un chunk)
@@ -28,7 +29,9 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> list:
                             if page_text.strip():
                                 chunks.append({"document_id": doc_id, "chunk_id": idx, "text": f"Página {page_num + 1}:\n{page_text}", "start": 0, "end": 0})
                                 idx += 1
-                    return chunks
+                    
+                    documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
+                    return documentchunks
 
                 # Caso 2: Excel (cada hoja es un chunk)
                 elif file_type in ["xlsx", "xls"]:
@@ -39,7 +42,9 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> list:
                         if sheet_text.strip():
                             chunks.append({"document_id": doc_id, "chunk_id": idx, "text": f"Hoja: {sheet_name}\n{sheet_text}", "start": 0, "end": 0})
                             idx += 1
-                    return chunks
+                    
+                    documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
+                    return documentchunks
                 
                 # Caso 3: PowerPoint (cada diapositiva es un chunk)
                 elif file_type == "pptx":
@@ -55,17 +60,20 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> list:
                         if full_slide_text.strip():
                             chunks.append({"document_id": doc_id, "chunk_id": idx, "text": f"Diapositiva {i + 1}:\n{full_slide_text}", "start": 0, "end": 0})
                             idx += 1
-                    return chunks
+                    
+                    documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
+                    return documentchunks
                 
                 else:
-                    print(f"ADVERTENCIA: No se puede dividir por páginas para el tipo '{file_type}'. Se usará el modo delimitador.")
+                    print(f"[WARNING] No se puede dividir por páginas para el tipo '{file_type}'. Se usará el modo delimitador.")
                     split_mode = "delimiter" # Fallback a delimitador
 
             except Exception as e:
-                print(f"ERROR al dividir por páginas: {e}. Se usará el modo delimitador.")
+                print(f"[ERROR] Error al dividir por páginas: {e}. Se usará el modo delimitador.")
                 split_mode = "delimiter" # Fallback a delimitador
 
         if split_mode == "size" and chunk_size and chunk_size > 0:
+            print(f"[INFO] Dividiendo texto en chunks de tamaño {chunk_size} con superposición de {overlap}.")
             text_len = len(text)
             while pos < text_len:
                 end = min(pos + chunk_size, text_len)
@@ -73,9 +81,11 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> list:
                 chunks.append({ "document_id": doc_id, "chunk_id": idx, "text": chunk_text, "start": pos, "end": end })
                 pos += chunk_size - overlap
                 idx += 1
-            return chunks
+            documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
+            return documentchunks
 
         # Modo por defecto y fallback: "delimiter"
+        print(f"[INFO] Dividiendo texto por delimitador '{split_by}'.")
         parts = text.split(split_by)
         for part in parts:
             if part.strip():
@@ -84,4 +94,5 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> list:
                 chunks.append({ "document_id": doc_id, "chunk_id": idx, "text": part, "start": start, "end": end })
                 pos = end
                 idx += 1
-        return chunks
+        documentchunks = [DocumentChunk(**chunk) for chunk in chunks]
+        return documentchunks

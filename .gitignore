@@ -2,3 +2,7 @@
 gcp-service-account.json
 
 .env
+
+alembic_*.*
+backend/alembic.ini
+backend/alembic/*

@@ -18,10 +18,10 @@ class Document(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     filename = Column(String, nullable=False)
     content_type = Column(String, nullable=False)
-    content = Column(LargeBinary, nullable=False) # Lo mantendremos por ahora
+    content = Column(LargeBinary, nullable=False) # TODO: Lo mantendremos por ahora, pasarlo a MINI IO
     size = Column(Integer, nullable=False)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    text_content = Column(Text, nullable=True)
+    text_content = Column(Text, nullable=True) # Para almacenar el texto extraído del documento, al principio vacio hasta que se extraiga el texto
     split_by = Column(String, nullable=True, default="\n\n") 
     tags = Column(ARRAY(String), nullable=True)
     status = Column(String, default="pending", nullable=False) # "pending", "processing", "processed", "failed"

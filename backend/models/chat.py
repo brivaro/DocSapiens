@@ -1,0 +1,23 @@
+from typing import Optional, List
+from pydantic import BaseModel, Field
+
+# --- Modelos Pydantic para la API ---
+
+class ChatRequest(BaseModel):
+    question: str = Field(..., min_length=1, description="La pregunta del usuario.")
+    top_k: int = Field(5, gt=0, le=10, description="Número de chunks a recuperar.")
+    document_ids: Optional[List[str]] = Field(None, description="Lista opcional de IDs de documentos para filtrar la búsqueda.")
+    tags: Optional[List[str]] = Field(None, description="Lista opcional de etiquetas para filtrar la búsqueda.")
+    model: Optional[str] = Field("gemini-2.0-flash", description="Modelo generativo a usar.")
+
+class Chunk(BaseModel):
+    chunk_id: str = Field(..., description="ID del chunk de texto recuperado.")
+    document_id: str = Field(..., description="ID del documento al que pertenece el chunk.")
+    text: str = Field(..., description="Texto del chunk.")
+    start: int = Field(None, description="Posición de inicio del chunk en el documento.")
+    end: int = Field(None, description="Posición de fin del chunk en el documento.")
+    score: float = Field(None, description="Puntuación de relevancia del chunk.")
+
+class ChatResponse(BaseModel):
+    answer: str = Field(..., description="Respuesta generada por el modelo.")
+    chunks: List[Chunk] = Field(..., description="Lista de chunks de texto recuperados relacionados con la pregunta.")

@@ -2,7 +2,6 @@ from typing import List
 from backend.models.apikey import APIKeyCreate, APIKeyResponse
 from backend.db.session import SessionLocal
 from backend.db import crud
-from datetime import datetime
 
 class APIKeyService:
     """Servicio para la gestión de API Keys."""

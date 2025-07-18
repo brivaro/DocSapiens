@@ -13,14 +13,16 @@ def upload_document(
     db: Session = Depends(get_db),
     file: UploadFile = File(...),
     split_mode: str = Form("delimiter"), # "delimiter", "size", "pages"
-    split_by: str = Form("\n\n"),      # Delimitador (ej. "\n\n")
+    split_by: str = Form("\n\n"),      # Delimitador
     chunk_size: Optional[int] = Form(None),
     overlap: Optional[int] = Form(0),
     tags: Optional[str] = Form(None) 
 ):
     content = file.file.read()
-    if len(content) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Archivo demasiado grande (máx 20MB)")
+    # TODO: Validar el tamaño del archivo
+    # Descomentar si se desea limitar el tamaño del archivo
+    #if len(content) > 20 * 1024 * 1024:
+    #    raise HTTPException(status_code=413, detail="Archivo demasiado grande (máx 20MB)")
     
     tags_list = tags.split(',') if tags and tags.strip() else []
     
@@ -37,14 +39,13 @@ def upload_document(
 
     db_doc = document_service.create_document(doc_create, background_tasks, db)
 
-    # Devuelve la respuesta inmediata con el estado inicial
     return DocumentResponse(
         id=str(db_doc.id),
         filename=db_doc.filename,
         content_type=db_doc.content_type,
         size=db_doc.size,
         uploaded_at=db_doc.uploaded_at.isoformat(),
-        status=db_doc.status, # Será 'pending'
+        status=db_doc.status,
         tags=db_doc.tags or []
     )
 
@@ -54,7 +55,6 @@ def list_documents():
 
 @router.get("/{doc_id}/chunks/", response_model=list[DocumentChunk]) 
 def get_document_chunks_endpoint(doc_id: str):
-    """Devuelve los chunks de un documento específico desde Qdrant."""
     return document_service.get_document_chunks(doc_id)
 
 @router.delete("/{doc_id}/", status_code=204)

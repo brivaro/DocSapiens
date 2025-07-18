@@ -1,4 +1,8 @@
+import random
+from fastapi import HTTPException
 import os
+import uuid
+from backend.models.document import DocumentChunk, DocumentCreate
 import vertexai
 from vertexai.language_models import TextEmbeddingModel
 from typing import List
@@ -12,7 +16,7 @@ MODEL_NAME = "text-embedding-004"
 try:
     genai.configure(api_key=GOOGLE_API_KEY)
 except Exception as e:
-    print(f"Error al configurar la API de Google Generative AI: {e}")
+    print(f"[ERROR] Error al configurar la API de Google Generative AI: {e}")
 
 
 class EmbeddingService:
@@ -31,9 +35,46 @@ class EmbeddingService:
             )
             return result['embedding']
         except Exception as e:
-            print(f"Error al generar embedding con Google AI: {e}")
+            print(f"[ERROR] Error al generar embedding con Google AI: {e}")
             raise RuntimeError(f"Fallo en la generación de embedding: {e}")
+    
+    def generate_embeddings(self, chunks: List[DocumentChunk], doc_id: str, doc: DocumentCreate) -> List[dict]:
+        """
+        Genera embeddings para los chunks del documento y los prepara para subir a Qdrant.
+        """
+        texts = [chunk.text for chunk in chunks]
+        if not texts:
+            print(f"[ERROR] No hay texto para generar embeddings en el documento {doc_id}.")
+            return []
 
+        try:
+            # TODO: Generar embedding randoms de tamaño 768, generar con numpy o random (evitamos llamadas a la API)
+            embeddings = [[random.uniform(-1, 1) for _ in range(768)] for _ in range(len(texts))]
+            #embeddings = self.embed(texts)
+            
+            print(f"[INFO] Generados {len(embeddings)} embeddings para el documento {doc_id}.")
+            vectors = []
+            for i, chunk in enumerate(chunks):
+                if chunk.text and chunk.text.strip() and len(embeddings) > i:
+                    vectors.append({
+                        "id": str(uuid.uuid4()),
+                        "embedding": embeddings[i],
+                        "metadata": {
+                            "document_id": doc_id, 
+                            "chunk_id": chunk.chunk_id,
+                            "filename": doc.filename,
+                            "content_type": doc.content_type,
+                            "start": chunk.start, 
+                            "end": chunk.end, 
+                            "text": chunk.text,
+                            "tags": doc.tags 
+                        }
+                    })
+            return vectors
+        
+        except Exception as e:
+            print(f"[ERROR] Error al generar embeddings para el documento {doc_id}: {e}")
+            raise HTTPException(status_code=500, detail=f"Error al generar embeddings: {e}")
 
 embedding_service = EmbeddingService()
 
@@ -49,7 +90,7 @@ embedding_service = EmbeddingService()
 #try:
 #    vertexai.init(project=GCP_PROJECT_ID, location=GCP_REGION)
 #except Exception as e:
-#    print(f"Error al inicializar Vertex AI SDK: {e}")
+#    print(f"[ERROR] Error al inicializar Vertex AI SDK: {e}")
 #    # En un entorno real, podrías querer manejar esto con más detalle.
 #
 #class EmbeddingService:
@@ -80,7 +121,7 @@ embedding_service = EmbeddingService()
 #            return [embedding.values for embedding in embeddings]
 #        except Exception as e:
 #            # Manejo de errores más robusto.
-#            print(f"Error al generar embedding con Vertex AI: {e}")
+#            print(f"[ERROR] Error al generar embedding con Vertex AI: {e}")
 #            # Devuelve una lista vacía o vuelve a lanzar la excepción según la lógica de tu app.
 #            raise RuntimeError(f"Fallo en la generación de embedding: {e}")
 #

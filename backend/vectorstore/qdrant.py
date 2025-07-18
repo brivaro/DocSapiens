@@ -8,7 +8,7 @@ QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION")
 
 client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
 
-VECTOR_SIZE = 768  # Ajusta según el modelo de embeddings para el text-...-004 de google
+VECTOR_SIZE = 768  # Ajusta según el modelo de embeddings: para el text-...-004 de google es 768
 
 def ensure_collection():
     try:
@@ -20,10 +20,9 @@ def ensure_collection():
                 vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE)
             )
     except Exception as e:
-        print(f"Error al conectar o crear colección en Qdrant: {e}")
+        print(f"[ERROR] Error al conectar o crear colección en Qdrant: {e}")
 
 def upsert_vectors(vectors: list[dict]):
-    ensure_collection()
     points = [PointStruct(id=chunk["id"], vector=chunk["embedding"], payload=chunk["metadata"]) for chunk in vectors]
     client.upsert(collection_name=QDRANT_COLLECTION, points=points, wait=True)
 
@@ -33,7 +32,7 @@ def get_distinct_documents() -> list[dict]:
     distinct_docs = []
     
     # Hacemos scroll para obtener una muestra de puntos y extraer los documentos
-    # Para producción, se podría necesitar paginación más robusta.
+    # TODO: Para producción, se podría necesitar paginación más robusta.
     response, _ = client.scroll(
         collection_name=QDRANT_COLLECTION,
         limit=1000, # Aumentar si tienes más de 1000 documentos
@@ -48,8 +47,7 @@ def get_distinct_documents() -> list[dict]:
                 "id": doc_id,
                 "filename": hit.payload.get("filename"),
                 "content_type": hit.payload.get("content_type"),
-                # Recuperamos los tags del payload de Qdrant
-                "tags": hit.payload.get("tags", []),
+                "tags": hit.payload.get("tags"),
                 "status": "Processed"
             })
             
@@ -74,7 +72,7 @@ def document_exists(filename: str) -> bool:
     )
     return len(response) > 0
 
-def delete_by_document_id(doc_id: str):
+def delete_chunks_by_document_id(doc_id: str):
     """Elimina todos los puntos (chunks) asociados a un document_id."""
     client.delete(
         collection_name=QDRANT_COLLECTION,
