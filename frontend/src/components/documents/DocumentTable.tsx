@@ -6,7 +6,7 @@ interface Document {
   type: string;
   status: string;
   date: string;
-  tags?: string[];
+  tags: string[];
 }
 
 // NFunción de borrado

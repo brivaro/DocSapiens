@@ -48,7 +48,7 @@ const Documents: React.FC = () => {
       },
       onError: () => {
         // Opcional: podrías decidir mantener la modal abierta en caso de error
-        // handleCancelUpload(); 
+        // TODO: handleCancelUpload(); 
       }
     });
   };
@@ -64,7 +64,7 @@ const Documents: React.FC = () => {
     id: doc.id,
     filename: doc.filename,
     type: formatDocType(doc.content_type),
-    status: doc.status || 'Processed',
+    status: doc.status || 'failed',
     date: doc.uploaded_at && doc.uploaded_at !== "N/A" 
           ? new Date(doc.uploaded_at).toLocaleDateString() 
           : 'N/A',

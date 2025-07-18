@@ -70,7 +70,6 @@ export function useDocuments() {
         },
     });
 
-  // --- ESTA ES LA DEFINICIÓN SIMPLIFICADA Y CORRECTA ---
   const { mutate: uploadDocument, isPending: isUploading } = useMutation({ 
     mutationFn: uploadDocumentApi,
     onSuccess: (data) => { // El 'data' es la respuesta de la API (el documento actualizado)
@@ -79,7 +78,7 @@ export function useDocuments() {
       // 1. Invalida la lista de documentos para refrescar la tabla
       queryClient.invalidateQueries({ queryKey: ["documents"] });
 
-      // 2. ¡LA LÍNEA CLAVE! Invalida los chunks del documento específico que se acaba de subir.
+      // 2. Invalida los chunks del documento específico que se acaba de subir.
       //    Esto forzará al componente ChunkViewer a recargar sus datos si está viendo este documento.
       queryClient.invalidateQueries({ queryKey: ["chunks", data.id] });
     },
