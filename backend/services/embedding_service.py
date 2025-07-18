@@ -6,7 +6,7 @@ from backend.models.document import DocumentChunk, DocumentCreate
 import vertexai
 from vertexai.language_models import TextEmbeddingModel
 from typing import List
-import google.generativeai as genai
+import google.genai as genai
 
 # --- Configuración ---
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")

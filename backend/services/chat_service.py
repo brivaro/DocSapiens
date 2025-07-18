@@ -1,7 +1,7 @@
 import os
 from typing import List
 from backend.models.chat import ChatResponse, Chunk
-import google.generativeai as genai
+import google.genai as genai
 from fastapi import HTTPException
 from backend.vectorstore.retriever import retrieve_chunks
 

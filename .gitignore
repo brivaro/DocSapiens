@@ -1,8 +1,10 @@
 # Archivos de credenciales GCP
 gcp-service-account.json
 
+# Archivos de configuración
 .env
 
+# Archivos de configuración de Python
 alembic_*.*
 backend/alembic.ini
 backend/alembic/*
