@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.api.v1 import apikeys, documents, chat, embeddings
+from backend.api.v1 import apikeys, documents, chat, embeddings, generation
 from backend.db.session import engine, Base
 from backend.vectorstore.qdrant import ensure_collection
 
@@ -41,6 +41,7 @@ app.include_router(apikeys.router, prefix="/api/v1/apikeys", tags=["API Keys"])
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["Documentos"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(embeddings.router, prefix="/api/v1/embeddings", tags=["Embeddings"]) 
+app.include_router(generation.router, prefix="/api/v1/generate", tags=["Generation"])
 
 @app.get("/")
 def read_root():

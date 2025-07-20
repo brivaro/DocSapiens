@@ -5,10 +5,15 @@ from pydantic import BaseModel, Field
 
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, description="La pregunta del usuario.")
-    top_k: int = Field(5, gt=0, le=10, description="Número de chunks a recuperar.")
+    k: int = Field(5, gt=0, le=10, description="Número de chunks a recuperar.")
     document_ids: Optional[List[str]] = Field(None, description="Lista opcional de IDs de documentos para filtrar la búsqueda.")
     tags: Optional[List[str]] = Field(None, description="Lista opcional de etiquetas para filtrar la búsqueda.")
     model: Optional[str] = Field("gemini-2.0-flash", description="Modelo generativo a usar.")
+    system_instruction: Optional[str] = Field(None, description="Instrucción del sistema para el modelo.")
+    temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
+    top_k: Optional[int] = Field(None, gt=0)
+    max_output_tokens: Optional[int] = Field(None, gt=0, description="Máximo de tokens en la respuesta.")
+    thinking_budget: Optional[int] = Field(None, ge=0, description="Presupuesto para la función de 'pensamiento' del modelo. 0 la deshabilita.")
 
 class Chunk(BaseModel):
     chunk_id: str = Field(..., description="ID del chunk de texto recuperado.")

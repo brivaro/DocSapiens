@@ -1,3 +1,5 @@
+# TODO: SE PUEDE BORRAR YA LO HACE LA LÓGICA DEL LLM_PROVIDER
+
 import random
 from fastapi import HTTPException
 import os

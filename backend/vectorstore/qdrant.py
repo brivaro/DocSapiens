@@ -1,6 +1,10 @@
+from typing import List
+import uuid
+from backend.models.document import DocumentChunk, DocumentCreate
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import PointStruct, VectorParams, Distance, Filter, FieldCondition, MatchValue, FilterSelector
 import os
+from backend.llm_providers.factory import get_llm_provider
 
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT"))
@@ -8,19 +12,47 @@ QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION")
 
 client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
 
-VECTOR_SIZE = 768  # Ajusta según el modelo de embeddings: para el text-...-004 de google es 768
-
 def ensure_collection():
+    llm_provider = get_llm_provider()
+    vector_size = llm_provider.get_embedding_dimension()
     try:
         collections_response = client.get_collections()
         collection_names = [c.name for c in collections_response.collections]
         if QDRANT_COLLECTION not in collection_names:
             client.create_collection(
                 collection_name=QDRANT_COLLECTION,
-                vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE)
+                vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE)
             )
     except Exception as e:
         print(f"[ERROR] Error al conectar o crear colección en Qdrant: {e}")
+
+def generate_vector_to_qdrant(
+        embeddings: List[List[float]], 
+        chunks: List[DocumentChunk], 
+        doc_id: str, 
+        doc: DocumentCreate
+) -> List[dict]:
+        """
+        Genera el formato de vector para Qdrant.
+        """
+        vectors = []
+        for i, chunk in enumerate(chunks):
+            if chunk.text and chunk.text.strip() and len(embeddings) > i:
+                vectors.append({
+                    "id": str(uuid.uuid4()),
+                    "embedding": embeddings[i],
+                    "metadata": {
+                        "document_id": doc_id, 
+                        "chunk_id": chunk.chunk_id,
+                        "filename": doc.filename,
+                        "content_type": doc.content_type,
+                        "start": chunk.start, 
+                        "end": chunk.end, 
+                        "text": chunk.text,
+                        "tags": doc.tags 
+                    }
+                })
+        return vectors
 
 def upsert_vectors(vectors: list[dict]):
     points = [PointStruct(id=chunk["id"], vector=chunk["embedding"], payload=chunk["metadata"]) for chunk in vectors]

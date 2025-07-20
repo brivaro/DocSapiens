@@ -1,52 +1,35 @@
-import os
 from typing import List
-from backend.models.chat import ChatResponse, Chunk
-import google.genai as genai
+from backend.models.chat import ChatRequest, ChatResponse, Chunk
 from fastapi import HTTPException
 from backend.vectorstore.retriever import retrieve_chunks
+from backend.llm_providers.factory import get_llm_provider
+from backend.llm_providers.base import LLMProvider
 
 class ChatService:
-    """
-    Servicio para manejar la lógica del chat con el modelo generativo.
-    """
-    def __init__(self, api_key: str, model: str):
-        if not api_key:
-            raise ValueError("La API key de Gemini no puede estar vacía.")
-        # Configura la API key para esta instancia del servicio.
-        genai.configure(api_key=api_key)
-        self.default_model = model
+    def __init__(self, llm_provider: LLMProvider):
+        self.llm_provider = llm_provider
 
-    def chat(self, question: str, top_k: int = 5, document_ids: List[str] = None, model: str = None) -> ChatResponse:
-        """
-        Genera una respuesta a una pregunta usando RAG (Retrieval-Augmented Generation).
-        """
-        model_to_use = model or self.default_model
-
-        print(f"[INFO] Recuperando chunks para la pregunta: {question} con top_k={top_k} y document_ids={document_ids}")
-        chunks = retrieve_chunks(question, top_k=top_k, document_id=document_ids)
-        context = "\n".join([chunk["text"] for chunk in chunks if chunk["text"]])
-        
-        print(f"[INFO] Contexto recuperado, preparando prompt para el modelo: {model_to_use}")
-        prompt = (
-            "Usa el siguiente contexto para responder la pregunta. "
-            "Responde de forma clara y profesional. Si la respuesta no está en el contexto, "
-            "indícalo explícitamente.\n\n"
-            f"Contexto:\n{context}\n\n"
-            f"Pregunta: {question}"
-        )
-
+    def chat(self, request: ChatRequest) -> ChatResponse:
         try:
-            model_instance = genai.GenerativeModel(model_to_use)
-            response = model_instance.generate_content(prompt)
-            answer = response.text
+            # TODO: deberian usarse los tags y document_ids para filtrar los chunks
+            chunks = retrieve_chunks(request.question, top_k=request.k, document_ids=request.document_ids)
+            context = "\n".join([chunk.text for chunk in chunks if chunk.text])
+            
+            answer = self.llm_provider.generate_chat_completion(
+                # Contexto
+                context=context,
+                question=request.question,
+                model=request.model,
+                # Configurations for the chat generation
+                system_instruction=request.system_instruction,
+                temperature=request.temperature,
+                max_output_tokens=request.max_output_tokens,
+                thinking_budget=request.thinking_budget,
+                top_k=request.top_k
+            )
+            
+            return ChatResponse(answer=answer, chunks=chunks)
         except Exception as e:
-            print(f"[ERROR] Error al generar respuesta del modelo de IA: {e}")
-            raise HTTPException(status_code=500, detail=f"Error al generar respuesta del modelo de IA: {e}")
-        
-        response = ChatResponse(
-            answer=answer,
-            chunks=[Chunk(**chunk) for chunk in chunks]
-        )
-        print(f"[INFO] Respuesta generada: {response.answer}")
-        
-        return response
+            raise HTTPException(status_code=500, detail=str(e))
+
+chat_service = ChatService(llm_provider=get_llm_provider())

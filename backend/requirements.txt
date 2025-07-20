@@ -12,6 +12,7 @@ PyMuPDF # fitz y docx ya están cubiertos por PyMuPDF y python-docx
 python-docx
 pdfplumber
 pandas
+numpy
 openpyxl
 xlrd
 python-pptx

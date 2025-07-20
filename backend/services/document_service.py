@@ -7,12 +7,15 @@ from backend.db import crud
 from sqlalchemy.orm import Session
 from backend.db.session import SessionLocal
 from backend.models.document import DocumentCreate, DocumentResponse, DocumentChunk
-from backend.services.embedding_service import embedding_service
+from backend.llm_providers.factory import get_llm_provider
 from backend.processing.extractor import _extract_text_from_content
 from backend.processing.splitter import _split_text
-from backend.vectorstore.qdrant import upsert_vectors, get_chunks_by_document_id, delete_chunks_by_document_id
+from backend.vectorstore.qdrant import generate_vector_to_qdrant, upsert_vectors, get_chunks_by_document_id, delete_chunks_by_document_id
 
 class DocumentService:
+    def __init__(self):
+        self.llm_provider = get_llm_provider()
+        
     def create_document(self, doc: DocumentCreate, background_tasks: BackgroundTasks, db: Session) -> Document:
         """
         Crea el registro del documento en la DB y lanza la tarea de procesamiento pesado
@@ -99,11 +102,15 @@ class DocumentService:
                 print(f"[TASK] Dividiendo texto en chunks para el documento {doc_id}.")
                 chunks = _split_text(text, doc_id, doc)
                 
-                vectors = embedding_service.generate_embeddings(chunks, doc_id, doc)
+                #vectors = embedding_service.generate_embeddings(chunks, doc_id, doc)
+                texts = [chunk.text for chunk in chunks]
+                vectors = self.llm_provider.generate_embeddings(texts, doc_id)
 
-                if vectors:
-                    print(f"[TASK] Subiendo {len(vectors)} chunks a Qdrant para el documento {doc_id}.")
-                    upsert_vectors(vectors)
+                vectors_to_qdrant = generate_vector_to_qdrant(vectors, chunks, doc_id, doc)
+                
+                if vectors_to_qdrant:
+                    print(f"[TASK] Subiendo {len(vectors_to_qdrant)} chunks a Qdrant para el documento {doc_id}.")
+                    upsert_vectors(vectors_to_qdrant) # Subir a Qdrant
 
                 self.crud.update_document_field(db, doc_id, "status", "processed")
                 print(f"[TASK] Documento {doc_id} procesado exitosamente.")
