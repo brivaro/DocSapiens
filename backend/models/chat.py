@@ -16,8 +16,9 @@ class ChatRequest(BaseModel):
     thinking_budget: Optional[int] = Field(None, ge=0, description="Presupuesto para la función de 'pensamiento' del modelo. 0 la deshabilita.")
 
 class Chunk(BaseModel):
-    chunk_id: str = Field(..., description="ID del chunk de texto recuperado.")
+    chunk_id: int = Field(..., description="ID del chunk de texto recuperado.")
     document_id: str = Field(..., description="ID del documento al que pertenece el chunk.")
+    chunk_tags: Optional[List[str]] = Field(None, description="Lista de etiquetas asociadas al chunk.")
     text: str = Field(..., description="Texto del chunk.")
     start: int = Field(None, description="Posición de inicio del chunk en el documento.")
     end: int = Field(None, description="Posición de fin del chunk en el documento.")

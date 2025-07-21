@@ -11,8 +11,16 @@ class ChatService:
 
     def chat(self, request: ChatRequest) -> ChatResponse:
         try:
-            # TODO: deberian usarse los tags y document_ids para filtrar los chunks
-            chunks = retrieve_chunks(request.question, top_k=request.k, document_ids=request.document_ids)
+            chunks = retrieve_chunks(
+                query=request.question, 
+                top_k=request.k, 
+                document_ids=request.document_ids,
+                tags=request.tags
+            )
+            if not chunks: # evitamos llamadas innecesarias al LLM si no hay resultados
+                print("[INFO] No se encontraron chunks relevantes para la consulta.")
+                return ChatResponse(answer="No se encontraron resultados relevantes.", chunks=[])
+            
             context = "\n".join([chunk.text for chunk in chunks if chunk.text])
             
             answer = self.llm_provider.generate_chat_completion(

@@ -91,7 +91,10 @@ class GoogleGeminiProvider(LLMProvider):
             # Simulación de embeddings aleatorios para pruebas
             embeddings = [[random.uniform(-1, 1) for _ in range(output_dim)] for _ in range(len(texts))]
 
-            print(f"[INFO] Generados {len(embeddings)} embeddings para el documento {doc_id}.")
+            if doc_id == "[RETRIEVE CHUNKS]":
+                print(f"[INFO] Generados {len(embeddings)} embeddings para la consulta de recuperación de chunks.")
+            else:
+                print(f"[INFO] Generados {len(embeddings)} embeddings para el documento {doc_id}.")
             
             # ¡IMPORTANTE! Normalizar embeddings si no usamos la dimensión completa como recomienda la documentación.
             if self._embedding_model == 'gemini-embedding-001' and output_dim != 3072:
@@ -134,9 +137,12 @@ class GoogleGeminiProvider(LLMProvider):
         # Preparado para multimodalidad: el prompt ahora es una lista
         # a la que en el futuro podríamos añadir objetos Image.
         return [
-            "Usa el siguiente contexto para responder la pregunta. "
-            "Responde de forma clara y profesional. Si la respuesta no está en el contexto, "
-            "indícalo explícitamente.\n\n"
+            "Eres un asistente inteligente capaz de responder preguntas basadas en el contexto proporcionado. "
+            "Tu objetivo es proporcionar respuestas precisas y útiles basadas en la información disponible. "
+            "Usa el siguiente contexto para responder la pregunta del usuario. Si no tienes suficiente información, "
+            "o no has encontrado la respuesta en el contexto, indícalo claramente. No inventes información. "
+            "Puedes usar emojis si es apropiado, pero no los uses en exceso. "
+            "Responde de forma clara y profesional.\n\n"
             f"Contexto:\n{context}\n\n"
             f"Pregunta: {question}"
         ]
