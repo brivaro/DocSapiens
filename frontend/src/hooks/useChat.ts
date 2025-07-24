@@ -1,72 +1,97 @@
 // hooks/useChat.ts
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import type { Chunk, ChatRequestParams, Message, ChatHistoryItem } from '../types/chat';
 
-// Parámetros que se envían a la API
-export interface ChatRequestParams {
-  question: string;
-  k?: number;
-  document_ids?: string[];
-  tags?: string[];
-  model?: string;
-  system_instruction?: string;
-  temperature?: number;
-  top_k?: number;
-  max_output_tokens?: number;
-  thinking_budget?: number;
+// Interfaz para la persistencia
+interface PersistChatParams {
+    conversationId: string | null;
+    question: string;
+    answer: string;
+    chunks: Chunk[];
 }
 
-// Estructura de un chunk devuelto por la API
-export interface Chunk {
-    document_id: string;
-    chunk_id: number;
-    text: string;
-    score: number;
-}
-
-// Estructura de la respuesta de la API
-interface ChatResponse {
-  answer: string;
-  chunks: Chunk[];
-}
-
-// Estructura de un mensaje en la UI
-export interface Message {
-  id: string; // Añadimos un ID para un key estable
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  chunks?: Chunk[];
-}
-
-// La función que llama a la API
-const sendChatRequest = async (params: ChatRequestParams): Promise<ChatResponse> => {
-    const { data } = await api.post('/api/v1/chat/', params);
-    return data;
-}
+// Función que decide si crear (POST) o actualizar (PUT)
+const persistChatHistory = async ({ conversationId, ...payload }: PersistChatParams) => {
+    if (conversationId) {
+        const { data } = await api.put(`/api/v1/history/${conversationId}`, payload);
+        return data;
+    } else {
+        const { data } = await api.post('/api/v1/history/', payload);
+        return data;
+    }
+};
 
 export const useChat = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [conversationId, setConversationId] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
-  const { mutate, isPending: isLoading } = useMutation({
-    mutationFn: (params: ChatRequestParams) => sendChatRequest(params),
-    onMutate: (params) => {
-        const userMessage: Message = { id: `user-${Date.now()}`, role: 'user', content: params.question };
-        setMessages(prev => [...prev, userMessage]);
-    },
-    onSuccess: (data) => {
-        const assistantMessage: Message = { id: `assistant-${Date.now()}`, role: 'assistant', content: data.answer, chunks: data.chunks };
-        setMessages(prev => [...prev, assistantMessage]);
-    },
-    onError: (error) => {
-        const errorMessage: Message = { id: `system-${Date.now()}`, role: 'system', content: `Error: ${error.message}` };
-        setMessages(prev => [...prev, errorMessage]);
-    }
-  });
+    const startNewConversation = () => {
+        setMessages([]);
+        setConversationId(null);
+    };
 
-  const sendMessage = (params: ChatRequestParams) => {
-      mutate(params);
-  }
+    const { mutate: persistChat } = useMutation({
+        mutationFn: persistChatHistory,
+        onSuccess: (data) => {
+            if (data?.id) setConversationId(data.id);
+            queryClient.invalidateQueries({ queryKey: ['chat-history'] });
+        },
+        onError: (error) => {
+            console.error("Failed to save chat history:", error);
+        }
+    });
 
-  return { messages, sendMessage, isLoading };
+    const { mutate, isPending: isLoading } = useMutation({
+        mutationFn: (params: ChatRequestParams): Promise<{answer: string, chunks: Chunk[]}> => 
+            api.post('/api/v1/chat/', params).then(res => res.data),
+        onMutate: (params) => {
+            const userMessage: Message = { id: `user-${Date.now()}`, role: 'user', content: params.question };
+            setMessages(prev => [...prev, userMessage]);
+        },
+        onSuccess: (data, params) => {
+            const assistantMessage: Message = { id: `assistant-${Date.now()}`, role: 'assistant', content: data.answer, chunks: data.chunks };
+            setMessages(prev => [...prev, assistantMessage]);
+
+            persistChat({
+                conversationId,
+                question: params.question,
+                answer: data.answer,
+                chunks: data.chunks
+            });
+        },
+        onError: (error) => {
+            const errorMessage: Message = { id: `system-${Date.now()}`, role: 'system', content: `Error: ${error.message}` };
+            setMessages(prev => [...prev, errorMessage]);
+        }
+    });
+
+    const resumeConversation = (historyItem: ChatHistoryItem) => {
+        const newMessages: Message[] = [];
+        historyItem.questions.forEach((question, index) => {
+            newMessages.push({ id: `user-${historyItem.id}-${index}`, role: 'user', content: question });
+            if (historyItem.answers[index]) {
+                newMessages.push({
+                    id: `assistant-${historyItem.id}-${index}`,
+                    role: 'assistant',
+                    content: historyItem.answers[index],
+                    chunks: historyItem.chunks[index] || [] 
+                });
+            }
+        });
+        
+        setMessages(newMessages);
+        setConversationId(historyItem.id);
+    };
+
+    return { 
+        messages, 
+        sendMessage: mutate, 
+        isLoading,
+        setMessages,
+        startNewConversation,
+        resumeConversation
+    };
 };

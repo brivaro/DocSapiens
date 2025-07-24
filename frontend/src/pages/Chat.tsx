@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useChat, type Message, type Chunk, type ChatRequestParams } from '../hooks/useChat';
+import type { Chunk, ChatRequestParams, Message, ChatHistoryItem } from '../types/chat';
+import { useChat } from '../hooks/useChat';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import ChatFiltersPanel from  '../components/chat/ChatFiltersPanel';
 import ChatSettingsPanel, { type Settings } from '../components/chat/ChatSettingsPanel';
@@ -86,7 +87,7 @@ const MessageBubble: React.FC<{ message: Message, onViewSources: (chunks: Chunk[
 const Chat: React.FC = () => {
     // Hooks y estado
     const [input, setInput] = useState("");
-    const { messages, sendMessage, isLoading } = useChat();
+    const { messages, sendMessage, isLoading, resumeConversation } = useChat(); 
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const [isSettingsCollapsed, setIsSettingsCollapsed] = useState(true);
     const [viewingChunks, setViewingChunks] = useState<Chunk[] | null>(null);
@@ -146,6 +147,7 @@ const Chat: React.FC = () => {
                         onSettingsChange={handleSettingsChange} 
                         isCollapsed={isSettingsCollapsed} 
                         setIsCollapsed={setIsSettingsCollapsed} 
+                        onResumeConversation={resumeConversation}
                     />
                 </div>
             </div>

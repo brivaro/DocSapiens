@@ -28,11 +28,18 @@ class ChatResponse(BaseModel):
     answer: str = Field(..., description="Respuesta generada por el modelo.")
     chunks: List[Chunk] = Field(..., description="Lista de chunks de texto recuperados relacionados con la pregunta.")
 
-class ChatHistoryItem(BaseModel):
-    id: str = Field(..., description="ID único de la interacción.")
+# Modelo para CREAR un historial (lo que envía el frontend)
+class ChatHistoryCreate(BaseModel):
     question: str = Field(..., description="Pregunta realizada por el usuario.")
     answer: str = Field(..., description="Respuesta generada por el modelo.")
-    chunks: List[Chunk] = Field(..., description="Lista de chunks de texto recuperados relacionados con la pregunta.")
+    chunks: List[Chunk] = Field(..., description="Lista de chunks recuperados.")
+
+# Modelo para DEVOLVER un historial (lo que envía el backend)
+class ChatHistoryItem(BaseModel):
+    id: str = Field(..., description="ID único de la interacción.")
+    questions: List[str] = Field(..., description="Array de preguntas realizadas por el usuario.")
+    answers: List[str] = Field(..., description="Array de respuestas generadas por el modelo.")   
+    chunks: List[List[Chunk]] = Field(..., description="Lista de chunks de texto recuperados relacionados con la pregunta.")
 
 class ChatHistoryResponse(BaseModel):
     history: List[ChatHistoryItem]
