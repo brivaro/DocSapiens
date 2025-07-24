@@ -1,7 +1,8 @@
+import re
 from typing import List, Optional
 from backend.models.chat import Chunk
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Filter, FieldCondition, MatchValue, MatchAny
+from qdrant_client.http.models import Filter, FieldCondition, MatchValue, MatchAny, MatchText
 import os
 from backend.llm_providers.factory import get_llm_provider
 

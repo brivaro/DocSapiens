@@ -5,10 +5,10 @@ from pydantic import BaseModel, Field
 
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, description="La pregunta del usuario.")
-    k: int = Field(5, gt=0, le=10, description="Número de chunks a recuperar.")
+    k: int = Field(5, gt=0, le=30, description="Número de chunks a recuperar.")
     document_ids: Optional[List[str]] = Field(None, description="Lista opcional de IDs de documentos para filtrar la búsqueda.")
     tags: Optional[List[str]] = Field(None, description="Lista opcional de etiquetas para filtrar la búsqueda.")
-    model: Optional[str] = Field("gemini-2.0-flash", description="Modelo generativo a usar.")
+    model: Optional[str] = Field("gemini-2.0-flash", description="Modelo generativo a usar.") # gemini-2.5-pro, gemini-2.5-flash, gemini-2.0-flash-lite	
     system_instruction: Optional[str] = Field(None, description="Instrucción del sistema para el modelo.")
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
     top_k: Optional[int] = Field(None, gt=0)
@@ -27,3 +27,12 @@ class Chunk(BaseModel):
 class ChatResponse(BaseModel):
     answer: str = Field(..., description="Respuesta generada por el modelo.")
     chunks: List[Chunk] = Field(..., description="Lista de chunks de texto recuperados relacionados con la pregunta.")
+
+class ChatHistoryItem(BaseModel):
+    id: str = Field(..., description="ID único de la interacción.")
+    question: str = Field(..., description="Pregunta realizada por el usuario.")
+    answer: str = Field(..., description="Respuesta generada por el modelo.")
+    chunks: List[Chunk] = Field(..., description="Lista de chunks de texto recuperados relacionados con la pregunta.")
+
+class ChatHistoryResponse(BaseModel):
+    history: List[ChatHistoryItem]

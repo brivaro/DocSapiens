@@ -24,3 +24,12 @@ export function formatDocType(contentType: string | null): string {
       return contentType.split('/').pop()?.toUpperCase() || 'File';
   }
 }
+
+// Función para obtener el nombre del archivo sin la última extensión
+export const getFilenameWithoutExtension = (filename: string): string => {
+  const parts = filename.split('.');
+  if (parts.length > 1) {
+    return parts.slice(0, -1).join('.');
+  }
+  return filename;
+};

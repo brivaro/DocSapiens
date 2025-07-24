@@ -98,6 +98,11 @@ class DocumentService:
                 text = _extract_text_from_content(doc.content, doc.content_type, doc.filename)
                 if text:
                     self.crud.update_document_field(db, doc_id, "text_content", text)
+                
+                if "Unsupported file" in text:
+                    self.crud.update_document_field(db, doc_id, "status", "failed")
+                    print(f"[TASK] Documento {doc_id} marcado como 'failed'.")
+                    return
 
                 print(f"[TASK] Dividiendo texto en chunks para el documento {doc_id}.")
                 chunks = _split_text(text, doc_id, doc)

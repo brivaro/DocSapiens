@@ -1,5 +1,9 @@
 import React from 'react';
+import { Trash } from 'phosphor-react';
+import StatusBadge from './StatusBadge';
+import TagBadge from './TagBadge';
 
+// Interfaces sin cambios
 interface Document {
   id: string;
   filename: string;
@@ -7,92 +11,93 @@ interface Document {
   status: string;
   date: string;
   tags: string[];
+  originalFilename: string;
 }
 
-// NFunción de borrado
 interface Props {
   documents: Document[];
   onRowClick: (docId: string) => void;
   selectedDocId: string | null;
-  onDelete: (docId: string) => void;
+  onDeleteRequest: (doc: { id: string; filename: string }) => void;
 }
 
-const statusStyles: { [key: string]: string } = {
-    processed: "bg-green-100 text-green-800",
-    processing: "bg-yellow-100 text-yellow-800 animate-pulse",
-    pending: "bg-purple-100 text-purple-800",
-    failed: "bg-red-100 text-red-800",
-};
+// Componente para una fila, que se comporta como <tr>
+const DocumentRow: React.FC<{ doc: Document; isSelected: boolean; onRowClick: Props['onRowClick']; onDeleteRequest: Props['onDeleteRequest'] }> = ({ doc, isSelected, onRowClick, onDeleteRequest }) => (
+  // Fila: se comporta como un <tr>
+  <div
+    onClick={() => onRowClick(doc.id)}
+    className={`table-row border-b border-gray-200 cursor-pointer transition-colors last:border-b-0 ${isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
+  >
+    {/* Celda Nombre: se comporta como <td>. El 'overflow-hidden' es la garantía final. */}
+    <div className="table-cell px-6 py-4 align-middle">
+        <div className="overflow-hidden">
+            <p className="text-sm font-medium text-gray-900 break-all" title={doc.originalFilename}>
+              {doc.filename}
+            </p>
+        </div>
+    </div>
 
-const DocumentTable: React.FC<Props> = ({ documents, onRowClick, selectedDocId, onDelete }) => {
-  const handleDeleteClick = (e: React.MouseEvent, docId: string) => {
-    // Detiene la propagación para evitar que onRowClick se active
-    e.stopPropagation();
-    
-    if (window.confirm('Are you sure you want to delete this document and all its chunks?')) {
-      onDelete(docId);
-    }
-  };
+    {/* Celdas restantes */}
+    <div className="table-cell px-6 py-4 align-middle">
+      <StatusBadge status={doc.status} />
+    </div>
+    <div className="table-cell px-6 py-4 align-middle">
+      <div className="flex flex-wrap gap-1">
+        {doc.tags.map(tag => <TagBadge key={tag} tag={tag} />)}
+      </div>
+    </div>
+    <div className="table-cell px-6 py-4 align-middle text-sm text-gray-500 uppercase">{doc.type}</div>
+    <div className="table-cell px-6 py-4 align-middle text-sm text-gray-500">{doc.date}</div>
+    <div className="table-cell px-6 py-4 align-middle text-center">
+      <button
+        onClick={(e) => { e.stopPropagation(); onDeleteRequest({ id: doc.id, filename: doc.originalFilename }); }}
+        title={`Delete ${doc.originalFilename}`}
+        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors"
+      >
+        <Trash size={18} />
+      </button>
+    </div>
+  </div>
+);
 
+// Componente principal de la tabla
+const DocumentTable: React.FC<Props> = ({ documents, onRowClick, selectedDocId, onDeleteRequest }) => {
+  if (documents.length === 0) {
+    return <p className="text-center text-gray-500 py-10">No documents found.</p>;
+  }
+  
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#e7edf4] bg-white">
-      <table className="min-w-full">
-        <thead className="bg-slate-50">
-          <tr>
-            <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Name</th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Type</th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Status</th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Tags</th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
-            <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200">
-          {documents.map((doc) => (
-            <tr 
-              key={doc.id} 
-              className={`cursor-pointer hover:bg-slate-100 ${selectedDocId === doc.id ? 'bg-blue-100' : ''}`}
-              onClick={() => onRowClick(doc.id)}
-            >
-              <td className="px-4 py-3 text-sm font-medium text-gray-800 whitespace-nowrap">{doc.filename}</td>
-              <td className="px-4 py-3 text-sm text-gray-500">{doc.type}</td>
-              <td className="px-4 py-3">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[doc.status.toLowerCase()] || 'bg-gray-100 text-gray-800'}`}>
-                  {doc.status}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-sm text-gray-500">
-                <div className="flex flex-wrap gap-1">
-                  {doc.tags?.map((tag, index) => (
-                    <span key={index} className="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded-full">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </td>
-              <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{doc.date}</td>
-              <td className="px-4 py-3 text-sm whitespace-nowrap">
-                <div className="flex items-center gap-4">
-                  {/* 
-                  <button 
-                    onClick={() => onRowClick(doc.id)}
-                    className="font-semibold text-blue-600 hover:text-blue-800"
-                  >
-                    View
-                  </button>
-                  */}
-                  <button
-                    onClick={(e) => handleDeleteClick(e, doc.id)}
-                    className="font-semibold text-red-600 hover:text-red-800"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    // Contenedor principal: se comporta como <table style="table-layout: fixed">
+    <div className="table w-full table-fixed">
+      {/* Cabecera: se comporta como <thead> */}
+      <div className="table-header-group bg-gray-50 sticky top-0 z-10">
+        {/* Fila de cabecera: se comporta como <tr> */}
+        <div className="table-row">
+          {/* 
+            CAMBIO CLAVE: Celdas de cabecera con anchos de PORCENTAJE explícitos e inquebrantables.
+            Usamos 'style' para que la propiedad sea directa y no pueda ser sobreescrita por otra clase.
+          */}
+          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '28%' }}>Name</div>
+          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '17%' }}>Status</div>
+          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '19%' }}>Tags</div>
+          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '10%' }}>Type</div>
+          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '13%' }}>Date</div>
+          <div className="table-cell px-6 h-12 align-middle text-center text-xs font-bold text-gray-500 uppercase" style={{ width: '13%' }}>Actions</div>
+        </div>
+      </div>
+      
+      {/* Cuerpo de la tabla: se comporta como <tbody> */}
+      <div className="table-row-group bg-white">
+        {documents.map((doc) => (
+           <DocumentRow
+             key={doc.id}
+             doc={doc}
+             isSelected={selectedDocId === doc.id}
+             onRowClick={onRowClick}
+             onDeleteRequest={onDeleteRequest}
+           />
+        ))}
+      </div>
     </div>
   );
 };

@@ -17,7 +17,7 @@ class GoogleGeminiProvider(LLMProvider):
     """
     def __init__(
             self, chat_model: str = "gemini-2.5-flash", 
-            embedding_model: str = "text-embedding-001", 
+            embedding_model: str = "text-embedding-004", # "gemini-embedding-001", 
             image_model: str = "gemini-2.0-flash-preview-image-generation", # ya no esta en la API, no se puede usar
             speech_model: str = "gemini-2.5-flash-preview-tts"):
         try:
@@ -68,11 +68,13 @@ class GoogleGeminiProvider(LLMProvider):
                 model=f"models/{self._embedding_model}",
                 contents=texts,
                 config=types.EmbedContentConfig(
-                    task_type="RETRIEVAL_DOCUMENT",
+                    task_type="RETRIEVAL_DOCUMENT", # config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY")).embeddings
                     output_dimensionality=output_dim
                 )
             )
-            return result.embeddings
+            # Extraemos la lista de números de cada objeto ContentEmbedding.
+            # La nueva API devuelve una lista de estos objetos, no una lista de listas directamente.
+            return [e.values for e in result.embeddings]
         except Exception as e:
             print(f"[ERROR] Error al generar embedding con Google AI: {e}")
             raise RuntimeError(f"Fallo en la generación de embedding: {e}")
@@ -86,10 +88,10 @@ class GoogleGeminiProvider(LLMProvider):
 
         try:
             # TODO: comentado para evitar ahora en las pruebas llamadas a la API
-            # embeddings = self._embed(texts, output_dim=output_dim)
+            embeddings = self._embed(texts, output_dim=output_dim)
 
             # Simulación de embeddings aleatorios para pruebas
-            embeddings = [[random.uniform(-1, 1) for _ in range(output_dim)] for _ in range(len(texts))]
+            # embeddings = [[random.uniform(-1, 1) for _ in range(output_dim)] for _ in range(len(texts))]
 
             if doc_id == "[RETRIEVE CHUNKS]":
                 print(f"[INFO] Generados {len(embeddings)} embeddings para la consulta de recuperación de chunks.")
@@ -136,13 +138,15 @@ class GoogleGeminiProvider(LLMProvider):
     def _build_prompt(self, context: str, question: str) -> List[str]:
         # Preparado para multimodalidad: el prompt ahora es una lista
         # a la que en el futuro podríamos añadir objetos Image.
+        print(f"[INFO] Construyendo prompt para la pregunta: {question}")
+        print(f"[INFO] Contexto proporcionado: {context[:200]}...")  # Muestra solo los primeros 100 caracteres del contexto
         return [
-            "Eres un asistente inteligente capaz de responder preguntas basadas en el contexto proporcionado. "
-            "Tu objetivo es proporcionar respuestas precisas y útiles basadas en la información disponible. "
-            "Usa el siguiente contexto para responder la pregunta del usuario. Si no tienes suficiente información, "
-            "o no has encontrado la respuesta en el contexto, indícalo claramente. No inventes información. "
-            "Puedes usar emojis si es apropiado, pero no los uses en exceso. "
-            "Responde de forma clara y profesional.\n\n"
+            "Eres un asistente experto en análisis de documentos. "
+            "Responde con precisión y profesionalismo usando exclusivamente el contexto proporcionado. "
+            "Si no encuentras la respuesta en el contexto, indícalo claramente y no inventes información. "
+            "Puedes complementar con conocimiento externo solo si no contradice el contexto. "
+            "Si la pregunta es ambigua o incompleta, sugiere al usuario que reformule o concrete mejor su consulta. "
+            "Responde de forma clara, estructurada y profesional. Puedes usar emojis si es apropiado, pero no los uses en exceso.\n\n"
             f"Contexto:\n{context}\n\n"
             f"Pregunta: {question}"
         ]
@@ -245,7 +249,7 @@ class GoogleGeminiProvider(LLMProvider):
 
     def generate_speech(self, text: str, voice_name: str, model: Optional[str] = None) -> bytes:
         model_to_use = model or self._speech_model
-        voice_name_to_use = voice_name or "Kore" # Kore: Firme, Sadachbia: Lively, Laomedeia: Animada, 	Algieba: Smooth, Charon: Informativo, ...
+        voice_name_to_use = voice_name or "Kore" # Kore: Firme, Sadachbia: Lively, Laomedeia: Animada, Algieba: Smooth, Charon: Informativo, ...
         try:
             prompt = f"Di esto en una limpia y profesional voz: {text}"
             

@@ -86,17 +86,61 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
             return chunks
 
         # Modo por defecto y fallback: "delimiter"
-        print(f"[INFO] Dividiendo texto por delimitador '{split_by}'.")
-        parts = text.split(split_by)
+        print(f"[INFO] Dividiendo texto por delimitador '{split_by}' (reteniendo el delimitador).")
+        
+        # Paso 1: Encontrar todas las posiciones de inicio del delimitador.
+        indices = []
+        start_index = 0
+        while True:
+            pos = text.find(split_by, start_index)
+            if pos == -1:
+                break
+            indices.append(pos)
+            start_index = pos + 1 # Continuar la búsqueda después de la posición encontrada
+        
+        # Paso 2: Usar los índices para cortar el texto en chunks.
+        parts = []
+        last_pos = 0
+        
+        # El primer chunk es desde el inicio hasta el primer delimitador.
+        if indices:
+            first_delimiter_pos = indices[0]
+            parts.append(text[last_pos:first_delimiter_pos])
+            last_pos = first_delimiter_pos
+        
+        # Los chunks intermedios van de un delimitador al siguiente.
+        for i in range(len(indices) - 1):
+            start_of_chunk = indices[i]
+            end_of_chunk = indices[i+1]
+            parts.append(text[start_of_chunk:end_of_chunk])
+            last_pos = end_of_chunk
+            
+        # El último chunk va desde el último delimitador hasta el final del texto.
+        if indices:
+            last_delimiter_pos = indices[-1]
+            parts.append(text[last_delimiter_pos:])
+        # Si no se encontraron delimitadores, el texto completo es el único chunk.
+        elif not parts and text:
+            parts.append(text)
+
+        # Ahora, convierte las partes en objetos DocumentChunk, calculando las posiciones.
+        current_pos_in_text = 0
         for part in parts:
+            # Ignoramos chunks que estén vacíos o solo contengan espacios en blanco.
             if part.strip():
-                start = text.find(part, pos)
-                end = start + len(part)
-                chunks.append(
-                    create_chunk_to_list(doc_id, idx, part, start, end, split_mode)
-                )
-                pos = end
-                idx += 1
+                start = text.find(part, current_pos_in_text)
+                if start != -1: # Asegurarnos de que encontramos la parte
+                    end = start + len(part)
+                    chunks.append(
+                        create_chunk_to_list(doc_id, idx, part, start, end, "delimiter")
+                    )
+                    # Actualizamos la posición para la siguiente búsqueda para manejar partes idénticas
+                    current_pos_in_text = start + 1 
+                    idx += 1
+                else:
+                    # Fallback por si find no funciona (muy improbable con esta lógica)
+                    print(f"[WARNING] No se pudo encontrar la posición del chunk: '{part[:50]}...'")
+
         return chunks
 
 def create_chunk_to_list(

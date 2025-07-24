@@ -25,3 +25,10 @@ class Document(Base):
     split_by = Column(String, nullable=True, default="\n\n") 
     tags = Column(ARRAY(String), nullable=True)
     status = Column(String, default="pending", nullable=False) # "pending", "processing", "processed", "failed"
+
+class History(Base):
+    __tablename__ = "history"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
+    questions = Column(ARRAY(String), nullable=False)
+    answers = Column(ARRAY(String), nullable=False)
+    chunks = Column(ARRAY(String), nullable=False)

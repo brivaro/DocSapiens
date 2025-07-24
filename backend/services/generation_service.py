@@ -1,6 +1,7 @@
 import base64, os
 import uuid
 import wave
+import io
 from backend.llm_providers.factory import get_llm_provider
 from backend.models.generation import ImageGenerationRequest, ImageGenerationResponse, TextToSpeechRequest, TextToSpeechResponse
 
@@ -42,26 +43,42 @@ class GenerationService:
     
     def text_to_speech(self, request: TextToSpeechRequest) -> TextToSpeechResponse:
         """
-        Genera el audio y lo guarda en el servidor.
-        Devuelve el nombre del archivo guardado.
+        Genera el audio, lo construye como un archivo WAV válido en memoria,
+        lo codifica a Base64 y opcionalmente lo guarda en el servidor.
         """
-        audio_bytes = self.llm_provider.generate_speech(
+        # Obtiene los datos de audio crudos (PCM) del proveedor
+        pcm_audio_bytes = self.llm_provider.generate_speech(
             text=request.text,
             voice_name=request.voice_name,
             model=request.model
         )
-        if not audio_bytes:
+        if not pcm_audio_bytes:
             raise ValueError("El modelo no generó audio.")
         
+        # Crea un buffer de bytes en memoria para actuar como un archivo.
+        mem_wav = io.BytesIO()
+
+        # Usa el módulo 'wave' para escribir en el buffer de memoria.
+        with wave.open(mem_wav, "wb") as wf:
+            wf.setnchannels(1)       # Mono
+            wf.setsampwidth(2)       # 16-bit PCM
+            wf.setframerate(24000)   # 24kHz (estándar para la API de Google TTS)
+            wf.writeframes(pcm_audio_bytes)
+        
+        # Obtén el contenido completo del archivo WAV desde el buffer de memoria.
+        wav_file_bytes = mem_wav.getvalue()
+        
+        # Opcional: Si aún quieres guardar una copia en el servidor.
         filename = f"{uuid.uuid4()}.wav"
         filepath = os.path.join(self.AUDIO_DIR, filename)
-        
-        self._save_audio_to_wav(filepath, audio_bytes)
+        with open(filepath, "wb") as f:
+            f.write(wav_file_bytes)
+        print(f"[INFO] Archivo de audio guardado en: {filepath}")
 
-        # 1. Codifica los bytes a Base64
-        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+        # Codifica el ARCHIVO WAV COMPLETO (no los datos crudos) a Base64.
+        audio_base64 = base64.b64encode(wav_file_bytes).decode('utf-8')
         
-        # 2. Devuelve el objeto de respuesta con el string Base64
+        # Devuelve la respuesta con el Base64 correcto.
         return TextToSpeechResponse(
             audio_base64=audio_base64,
             filename=filename

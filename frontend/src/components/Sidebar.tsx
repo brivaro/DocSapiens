@@ -1,53 +1,63 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { House, File, ChatCircleDots, Gear, ArrowCircleLeft, ArrowCircleRight } from 'phosphor-react';
+import DocsapiensLogo from '../assets/docsapiens.png';
 
 const navItems = [
-  { name: "Dashboard", path: "/dashboard", icon: "House" },
-  { name: "Documents", path: "/documents", icon: "File" },
-  { name: "Chat", path: "/chat", icon: "ChatCircleDots" },
-  { name: "Settings", path: "/settings", icon: "Gear" },
-  { name: "Help", path: "/help", icon: "Question" },
+  { name: 'Dashboard', path: '/dashboard', icon: House },
+  { name: 'Documents', path: '/documents', icon: File },
+  { name: 'Chat', path: '/chat', icon: ChatCircleDots },
+  { name: 'Settings', path: '/settings', icon: Gear },
 ];
 
-const icons: Record<string, JSX.Element> = {
-  House: (
-    <svg width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M224,115.55V208a16,16,0,0,1-16,16H168a16,16,0,0,1-16-16V168a8,8,0,0,0-8-8H112a8,8,0,0,0-8,8v40a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V115.55a16,16,0,0,1,5.17-11.78l80-75.48.11-.11a16,16,0,0,1,21.53,0,1.14,1.14,0,0,0,.11.11l80,75.48A16,16,0,0,1,224,115.55Z"></path></svg>
-  ),
-  File: (
-    <svg width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z"></path></svg>
-  ),
-  ChatCircleDots: (
-    <svg width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128ZM84,116a12,12,0,1,0,12,12A12,12,0,0,0,84,116Zm88,0a12,12,0,1,0,12,12A12,12,0,0,0,172,116Zm60,12A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Zm-16,0A88,88,0,1,0,51.81,172.06a8,8,0,0,1,.66,6.54L40,216,77.4,203.53a7.85,7.85,0,0,1,2.53-.42,8,8,0,0,1,4,1.08A88,88,0,0,0,216,128Z"></path></svg>
-  ),
-  Gear: (
-    <svg width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8,8,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z"></path></svg>
-  ),
-  Question: (
-    <svg width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M140,180a12,12,0,1,1-12-12A12,12,0,0,1,140,180ZM128,72c-22.06,0-40,16.15-40,36v4a8,8,0,0,0,16,0v-4c0-11,10.77-20,24-20s24,9,24,20-10.77,20-24,20a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-.72c18.24-3.35,32-17.9,32-35.28C168,88.15,150.06,72,128,72Zm104,56A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"></path></svg>
-  ),
-};
+interface SidebarProps {
+  isCollapsed: boolean;
+  onToggle: () => void;
+}
 
-const Sidebar: React.FC = () => {
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const location = useLocation();
+
   return (
-    <aside className="flex flex-col w-80 min-h-screen bg-slate-50 p-4 border-r border-[#e7edf4]">
-      <div className="flex flex-col gap-4">
-        <h1 className="text-[#0d141c] text-base font-medium leading-normal">DocSapiens</h1>
-        <nav className="flex flex-col gap-2">
-          {navItems.map((item) => (
+    <aside 
+      className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-40 ${isCollapsed ? 'w-20' : 'w-64'}`}
+    >
+      {/* Logo */}
+      <div className="flex items-center gap-3 h-16 px-6 border-b border-gray-200">
+        <img src={DocsapiensLogo} alt="DocSapiens Logo" className="w-8 h-8 rounded-full" />
+        {!isCollapsed && <span className="text-xl font-bold text-gray-800">DocSapiens</span>}
+      </div>
+
+      {/* Navegación Principal */}
+      <nav className="flex-1 p-4 space-y-2">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname.startsWith(item.path);
+          return (
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl ${location.pathname.startsWith(item.path) ? "bg-[#e7edf4]" : ""}`}
+              className={`flex items-center gap-4 p-3 rounded-lg text-gray-600 hover:bg-slate-100 hover:text-blue-600 transition-colors ${isActive ? 'bg-blue-50 text-blue-600 font-semibold' : ''}`}
             >
-              <span className="text-[#0d141c]">{icons[item.icon]}</span>
-              <span className="text-[#0d141c] text-sm font-medium leading-normal">{item.name}</span>
+              <Icon size={24} weight={isActive ? 'fill' : 'regular'} />
+              {!isCollapsed && <span>{item.name}</span>}
             </Link>
-          ))}
-        </nav>
+          );
+        })}
+      </nav>
+
+      {/* Botón de Colapsar */}
+      <div className="p-4 border-t border-gray-200">
+        <button 
+          onClick={onToggle} 
+          className="flex items-center gap-4 w-full p-3 rounded-lg text-gray-600 hover:bg-slate-100"
+        >
+          {isCollapsed ? <ArrowCircleRight size={24} /> : <ArrowCircleLeft size={24} />}
+          {!isCollapsed && <span>Collapse</span>}
+        </button>
       </div>
     </aside>
   );
 };
 
-export default Sidebar; 
+export default Sidebar;

@@ -1,168 +1,129 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDocuments } from '../hooks/useDocuments';
 import DocumentTable from '../components/documents/DocumentTable';
-import ChunkViewer from '../components/documents/ChunkViewer'; 
-import UploadConfigModal from '../components/UploadConfigModal';
-import { formatDocType } from '../utils/format';
+import ChunkPanel from '../components/documents/ChunkPanel';
+import UploadModal from '../components/documents/UploadModal';
+import DeleteConfirmModal from '../components/documents/DeleteConfirmModal';
+import { formatDocType, getFilenameWithoutExtension } from '../utils/format';
+import { Plus, Search } from 'lucide-react';
+import Select from 'react-select';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+
+type SelectOption = { value: string; label: string };
 
 const Documents: React.FC = () => {
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  
-  // --- PASO 1: CREAR LA REFERENCIA ---
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const { 
-    documents: apiDocuments = [], 
-    isLoading, error, 
-    uploadDocument, isUploading,
-    deleteDocument 
-  } = useDocuments();
-  
+  // Estados y hooks no cambian
+  const [isUploadModalOpen, setUploadModalOpen] = useState(false);
+  const [docToDelete, setDocToDelete] = useState<{ id: string; name: string } | null>(null);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const { documents: apiDocuments = [], isLoading, deleteDocument } = useDocuments();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<SelectOption | null>(null);
+  const [tagFilter, setTagFilter] = useState<readonly SelectOption[]>([]);
 
-  const handleFileSelect = (file: File | null) => {
-    if (file) setPendingFile(file);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => e.preventDefault();
-  
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    handleFileSelect(file);
-  };
-  
-  // --- PASO 2: CREAR UNA FUNCIÓN DE LIMPIEZA ---
-  const handleCancelUpload = () => {
-    setPendingFile(null); // Limpia el estado de React
-    // Y limpia el valor del input del DOM
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const handleUpload = (params: any) => {
-    uploadDocument(params, {
-      onSuccess: () => {
-        handleCancelUpload(); // Reutilizamos la función para limpiar todo
-      },
-      onError: () => {
-        // Opcional: podrías decidir mantener la modal abierta en caso de error
-        // TODO: handleCancelUpload(); 
-      }
+  // Datos y filtros no cambian
+  const filteredDocuments = useMemo(() => {
+    // ... (lógica de filtrado existente)
+    return apiDocuments.filter(doc => {
+        const searchMatch = doc.filename.toLowerCase().includes(searchTerm.toLowerCase());
+        const statusMatch = !statusFilter || statusFilter.value === 'all' || doc.status?.toLowerCase() === statusFilter.value;
+        const selectedTags = tagFilter.map(t => t.value);
+        const tagMatch = selectedTags.length === 0 || doc.tags?.some(tag => selectedTags.includes(tag));
+        return searchMatch && statusMatch && tagMatch;
     });
-  };
+  }, [apiDocuments, searchTerm, statusFilter, tagFilter]);
 
-  const handleDelete = (docId: string) => {
-    if (selectedDocId === docId) {
-      setSelectedDocId(null);
-    }
-    deleteDocument(docId);
-  };
-
-  const tableData = apiDocuments.map(doc => ({
+  const tableData = filteredDocuments.map(doc => ({
     id: doc.id,
-    filename: doc.filename,
+    filename: getFilenameWithoutExtension(doc.filename),
     type: formatDocType(doc.content_type),
     status: doc.status || 'failed',
-    date: doc.uploaded_at && doc.uploaded_at !== "N/A" 
-          ? new Date(doc.uploaded_at).toLocaleDateString() 
-          : 'N/A',
-    tags: doc.tags
+    date: doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A',
+    tags: doc.tags || [],
+    originalFilename: doc.filename,
   }));
 
+  // Manejadores no cambian
+  const handleRowClick = (docId: string) => setSelectedDocId(prev => prev === docId ? null : docId);
+  const handleDeleteRequest = (doc: { id: string; filename: string }) => setDocToDelete({ id: doc.id, name: doc.filename });
+  const confirmDelete = () => {
+    if (docToDelete) {
+      if (selectedDocId === docToDelete.id) setSelectedDocId(null);
+      deleteDocument(docToDelete.id);
+      setDocToDelete(null);
+    }
+  };
+
   return (
-    <div className="p-4 lg:p-6">
-      {pendingFile && (
-        <UploadConfigModal
-          file={pendingFile}
-          // --- PASO 3: USAR LA NUEVA FUNCIÓN ---
-          onClose={handleCancelUpload}
-          onUpload={handleUpload}
-          isUploading={isUploading}
+    <>
+      {isUploadModalOpen && <UploadModal onClose={() => setUploadModalOpen(false)} />}
+      {docToDelete && (
+        <DeleteConfirmModal 
+          isOpen={!!docToDelete} 
+          onClose={() => setDocToDelete(null)}
+          onConfirm={confirmDelete}
+          documentName={docToDelete.name}
         />
       )}
-      
-      {/* --- CONTENEDOR FLEX PRINCIPAL --- */}
-      <div className="flex flex-col lg:flex-row gap-8">
-        
-        {/* --- Columna Izquierda: Controles --- */}
-        <div className="w-full lg:w-1/3 xl:w-1/4 flex flex-col gap-6">
-          <h1 className="text-3xl font-bold text-gray-800">Documents</h1>
-          
-          {/* Input de búsqueda con ícono */}
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-                </svg>
+
+      <PanelGroup direction="horizontal" className="w-full h-[calc(100vh-8rem)]">
+        <Panel defaultSize={65} minSize={40}>
+          {/* 
+            CAMBIO ESTRUCTURAL CLAVE: Usamos CSS Grid para el layout del panel.
+            - grid-rows-[auto_auto_1fr]: Fila 1 y 2 tienen altura automática, Fila 3 ocupa el resto.
+            - overflow-hidden: Es la garantía final de que nada se saldrá del panel.
+          */}
+          <div className="grid grid-rows-[auto_auto_1fr] bg-white p-6 rounded-xl border border-gray-200 h-full overflow-hidden">
+            {/* Fila 1: Cabecera */}
+            <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
+                <p className="text-sm text-gray-500 mt-1">Manage and explore your corporate files.</p>
               </div>
-              <input type="text" placeholder="Search documents..." className="form-input block w-full rounded-lg border-gray-300 bg-gray-50 pl-10 focus:border-blue-500 focus:ring-blue-500" />
-          </div>
-
-          <div>
-            <h2 className="text-lg font-semibold mb-2">Upload</h2>
-            <div 
-              className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:bg-gray-50"
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              onClick={() => document.getElementById('file-input')?.click()}
-            >
-              <p className="font-bold">Drag and drop files here</p>
-              <p className="text-sm text-gray-500">Or click to browse</p>
+              <button onClick={() => setUploadModalOpen(true)} className="flex-shrink-0 flex items-center gap-2 w-full sm:w-auto justify-center px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
+                <Plus size={20} /> Upload Document
+              </button>
+            </header>
+            
+            {/* Fila 2: Filtros */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4">
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input type="text" placeholder="Search by name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full h-full py-1.5 pl-10 pr-3 border border-gray-300 rounded-lg shadow-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm" />
+              </div>
+              <Select options={useMemo(() => [{ value: 'all', label: 'All Statuses' }, { value: 'processed', label: 'Processed' }, { value: 'processing', label: 'Processing' }, { value: 'failed', label: 'Failed' }], [])} onChange={setStatusFilter} placeholder="Filter by Status" classNamePrefix="react-select" isClearable />
+              <Select isMulti options={useMemo(() => { const tagsSet = new Set<string>(); apiDocuments.forEach(doc => doc.tags?.forEach(tag => { if (tag) tagsSet.add(tag); })); return Array.from(tagsSet).sort().map(tag => ({ value: tag, label: tag })); }, [apiDocuments])} onChange={setTagFilter} placeholder="Filter by Tags" classNamePrefix="react-select" />
             </div>
-            <input 
-              type="file" 
-              id="file-input"
-              // --- PASO 1 (continuación): ASIGNAR LA REFERENCIA ---
-              ref={fileInputRef}
-              className="hidden" 
-              onChange={(e) => handleFileSelect(e.target.files?.[0] || null)} 
-            />
-          </div>
-
-          {/* Filters Section */}
-          <div>
-            <h2 className="text-lg font-semibold mb-3">Filters</h2>
-            <div className="space-y-3">
-              {/* --- ESTILO MEJORADO --- */}
-              <select className="form-select w-full rounded-lg border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500">
-                <option>All types</option>
-                <option>PDF</option>
-                <option>DOCX</option>
-              </select>
-              <select className="form-select w-full rounded-lg border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500">
-                <option>All statuses</option>
-                <option>Processed</option>
-              </select>
-              <select className="form-select w-full rounded-lg border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500">
-                <option>Sort by date</option>
-              </select>
+            
+            {/* 
+              Fila 3: Contenedor de la tabla con scroll.
+              - overflow-y-auto: Habilita el scroll vertical cuando es necesario.
+              - min-h-0: Esencial para que el scroll funcione correctamente dentro de un layout Grid.
+            */}
+            <div className="overflow-y-auto min-h-0">
+              {isLoading ? <p className="p-4 text-center text-gray-500">Loading documents...</p> : (
+                <DocumentTable 
+                  documents={tableData} 
+                  onRowClick={handleRowClick} 
+                  selectedDocId={selectedDocId} 
+                  onDeleteRequest={handleDeleteRequest}
+                />
+              )}
             </div>
           </div>
-        </div>
+        </Panel>
 
-        {/* --- COLUMNA DERECHA: Contenido --- */}
-        <div className="w-full lg:w-2/3 xl:w-3/4 flex flex-col gap-8">
-          <div>
-            {isLoading && <p className="text-center p-4">Loading documents...</p>}
-            {error && <p className="text-center p-4 text-red-500">Error: {error.message}</p>}
-            {!isLoading && !error && (
-              <DocumentTable 
-                documents={tableData} 
-                onRowClick={setSelectedDocId} 
-                selectedDocId={selectedDocId} 
-                onDelete={handleDelete} // <-- Usamos la nueva función
-              />
-            )}
-          </div>
-          <div>
-            <ChunkViewer selectedDocId={selectedDocId} />
-          </div>
-        </div>
+        <PanelResizeHandle className="w-2 flex items-center justify-center group">
+            <div className="w-1 h-10 bg-slate-200 group-hover:bg-blue-500 transition-colors rounded-full" />
+        </PanelResizeHandle>
         
-      </div>
-    </div>
+        <Panel defaultSize={35} minSize={25} className="hidden lg:block">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 h-full overflow-y-auto">
+            <ChunkPanel selectedDocId={selectedDocId} />
+          </div>
+        </Panel>
+      </PanelGroup>
+    </>
   );
 };
 
