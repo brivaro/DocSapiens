@@ -11,7 +11,8 @@ Seamlessly integrates frontend + backend to manage, vectorize, search, and chat 
 
 ## 🛠️ Tech Stack
  * FastAPI · PostgreSQL · LangChain · Qdrant 
- * React / Next.js frontend
+ * React frontend
+ * Python backend
  * Docker / CI/CD ready
 
 ## 💼 Ideal for
