@@ -5,7 +5,7 @@ from app.services.chat_service import chat_service
 router = APIRouter()
 
 @router.post("/", response_model=ChatResponse)
-def chat_endpoint(request: ChatRequest): # No se necesita Depends
+def chat_endpoint(request: ChatRequest):
     try:
         return chat_service.chat(request)
     except Exception as e:

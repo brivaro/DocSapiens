@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { House, File, ChatCircleDots, Gear, ArrowCircleLeft, ArrowCircleRight } from 'phosphor-react';
-import DocsapiensLogo from '../assets/docsapiens.png';
 
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: House },
@@ -24,7 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     >
       {/* Logo */}
       <div className="flex items-center gap-3 h-16 px-6 border-b border-gray-200">
-        <img src={DocsapiensLogo} alt="DocSapiens Logo" className="w-8 h-8 rounded-full" />
+        <img src={"/docsapiens.png"} alt="DocSapiens Logo" className="w-8 h-8 rounded-full" />
         {!isCollapsed && <span className="text-xl font-bold text-gray-800">DocSapiens</span>}
       </div>
 

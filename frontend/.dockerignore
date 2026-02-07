@@ -1,13 +1,5 @@
-# Ignorar las dependencias de Node.js, se instalarán dentro del contenedor
+# Ignorar las dependencias instaladas localmente
 node_modules
 
-# Ignorar la carpeta de compilación de producción, se generará dentro del contenedor
+# Ignorar el directorio de build local (para Vite es 'dist')
 dist
-build
-
-# Ignorar archivos de log
-*.log
-
-# Ignorar archivos específicos de los gestores de paquetes
-npm-debug.log
-pnpm-debug.log

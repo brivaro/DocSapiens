@@ -32,13 +32,9 @@ class ChatService:
                 f"Contexto:\n{context_text}\n\n"
                 f"Pregunta del usuario: {request.question}"
             )
-
-            # 3. Generar respuesta con Google Service
-            # Usamos el modelo que viene en la request o un default
-            model_to_use = request.model or "gemini-2.0-flash"
             
             answer = google_service.chat_completion(
-                model=model_to_use,
+                model=request.model,
                 prompt=final_prompt,
                 system_instruction=system_instruction,
                 temperature=request.temperature,

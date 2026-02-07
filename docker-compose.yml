@@ -41,6 +41,8 @@ services:
     build: 
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     container_name: docsapiens_backend
     init: true
     restart: unless-stopped
@@ -62,18 +64,21 @@ services:
   frontend:
     build:
       context: ./frontend
-      # dockerfile: Dockerfile (Asumiendo que tienes uno estándar)
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 1
     container_name: docsapiens_frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
-    env_file:
-      - .env
-    volumes:
-      - ./frontend:/app # Hot-reload (ajusta la ruta interna según tu Dockerfile de frontend)
-      - /app/node_modules # Evita sobrescribir node_modules del contenedor
+      - "3333:80"
     depends_on:
       - backend
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    env_file:
+      - ./frontend/.env
 
 volumes:
   pgdata:

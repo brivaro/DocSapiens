@@ -1,5 +1,4 @@
 import React from 'react';
-import UserAvatar from '../assets/docsapiens.png'; // Añade una imagen de avatar de placeholder
 
 const Navbar: React.FC = () => {
   return (
@@ -10,7 +9,7 @@ const Navbar: React.FC = () => {
         </button>
         <div className="w-px h-6 bg-gray-200" />
         <div className="flex items-center gap-3">
-          <img className="w-9 h-9 rounded-full object-cover" src={UserAvatar} alt="User avatar" />
+          <img className="w-9 h-9 rounded-full object-cover" src={"/docsapiens.png"} alt="User avatar" />
           <div>
             <p className="text-sm font-semibold text-gray-800">Brian</p>
             <p className="text-xs text-gray-500">Administrator</p>

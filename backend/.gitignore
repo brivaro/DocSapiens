@@ -3,5 +3,5 @@
 __pycache__/
 *.pyc
 
-alembic.ini
-alembic/*
+app/alembic.ini
+app/alembic/*

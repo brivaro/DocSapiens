@@ -47,4 +47,4 @@ app.include_router(api_settings.router, prefix="/api/v1/settings", tags=["Settin
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to DocSapiens API v2 (Google Native)"}
+    return {"message": "Welcome to DocSapiens API!"}

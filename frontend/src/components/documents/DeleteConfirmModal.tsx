@@ -1,7 +1,6 @@
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, AlertTriangle } from 'lucide-react';
-import DeleteImage from '../../assets/delete_document.png'; 
 
 interface Props {
   isOpen: boolean;
@@ -25,7 +24,7 @@ const DeleteConfirmModal: React.FC<Props> = ({ isOpen, onClose, onConfirm, docum
             {/* Columna Izquierda: Ilustración (la parte gris) */}
             <div className="hidden md:flex flex-col items-center justify-center w-56 bg-slate-50 p-6 border-r border-slate-200 flex-shrink-0">
                 <img 
-                  src={DeleteImage} 
+                  src={"/delete_document.png"} 
                   alt="A person throwing documents into a bin" 
                   className="w-32 h-32" 
                 />

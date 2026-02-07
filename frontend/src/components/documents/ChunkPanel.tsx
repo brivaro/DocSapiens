@@ -1,7 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import NoDocSelectedImage from '../../assets/no_doc_selected.png';
 import { CircleNotch, Star, WarningCircle } from 'phosphor-react';
 
 interface Chunk {
@@ -29,7 +28,7 @@ const ChunkPanel: React.FC<Props> = ({ selectedDocId }) => {
   if (!selectedDocId) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
-        <img src={NoDocSelectedImage} alt="No document selected" className="w-48" />
+        <img src={"/no_doc_selected.png"} alt="No document selected" className="w-48" />
         <h3 className="mt-4 text-lg font-semibold text-gray-700">Select a document</h3>
         <p className="text-sm text-gray-500">Choose a file from the list to view its fragments (chunks).</p>
       </div>

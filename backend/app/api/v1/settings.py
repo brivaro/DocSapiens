@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.db import crud
-from app.models.settings import RagConfigUpdate, RagConfigResponse
+from app.models.rag_settings import RagConfigUpdate, RagConfigResponse
 from app.services.document_service import document_service
 
 router = APIRouter()
