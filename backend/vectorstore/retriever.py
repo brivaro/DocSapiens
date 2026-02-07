@@ -1,10 +1,10 @@
 import re
 from typing import List, Optional
+from backend.llm_providers import llm_manager
 from backend.models.chat import Chunk
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue, MatchAny, MatchText
 import os
-from backend.llm_providers.factory import get_llm_provider
 
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 QDRANT_PORT = int(os.getenv("QDRANT_PORT"))
@@ -19,8 +19,8 @@ def retrieve_chunks(
     document_ids: Optional[List[str]] = None,
     tags: Optional[List[str]] = None
 ) -> List[Chunk]:
-    
-    embeddings = get_llm_provider().generate_embeddings([query], doc_id="[RETRIEVE CHUNKS]")
+    embedding_provider = llm_manager.get_default_embedding_provider() #TODO: cambiar para que se decida
+    embeddings = embedding_provider.generate_embeddings([query], doc_id="[RETRIEVE CHUNKS]")
     
     if not embeddings:
         raise ValueError("[ERROR] No se pudo generar el embedding para la consulta.")

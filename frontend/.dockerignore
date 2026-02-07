@@ -5,10 +5,8 @@ node_modules
 dist
 build
 
-# Ignorar archivos de log y de entorno local
+# Ignorar archivos de log
 *.log
-.env
-.env.local
 
 # Ignorar archivos específicos de los gestores de paquetes
 npm-debug.log

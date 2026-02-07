@@ -1,10 +1,9 @@
-from backend.db.models import APIKey
+from backend.db.models import APIKey, Document, RagConfiguration
 from backend.models.apikey import APIKeyCreate
+from backend.models.document import DocumentCreate
 from datetime import datetime
 import secrets
 from sqlalchemy.orm import Session
-from backend.db.models import Document
-from backend.models.document import DocumentCreate
 from typing import List, Optional
 
 ### --- CRUD APIKey ---
@@ -41,7 +40,6 @@ def create_document(db: Session, doc_in: DocumentCreate) -> Document:
     )
     db.add(db_doc)
     db.commit()
-    #db.refresh(db_doc)
     return db_doc
 
 def update_document(db: Session, db_doc: Document, doc_in: DocumentCreate) -> Document:
@@ -53,16 +51,14 @@ def update_document(db: Session, db_doc: Document, doc_in: DocumentCreate) -> Do
     db_doc.split_by = doc_in.split_by
     db_doc.status = "pending"
     db.commit()
-    #db.refresh(db_doc)
     return db_doc
 
-def update_document_field(db: Session, doc_id: str, field: str, value) -> Document:
+def update_document_field(db: Session, doc_id: str, field: str, value) -> Optional[Document]:
     db_doc = db.query(Document).filter(Document.id == doc_id).first()
     if not db_doc:
         return None
     setattr(db_doc, field, value)
     db.commit()
-    #db.refresh(db_doc)
     return db_doc
 
 def update_document_text(db: Session, doc_id: str, text: str) -> Optional[Document]:
@@ -94,3 +90,34 @@ def delete_document(db: Session, doc_id: str) -> bool:
         db.commit()
         return True
     return False
+
+### --- CRUD Settings (RAG Configuration) ---
+
+def get_active_rag_config(db: Session) -> RagConfiguration:
+    """Obtiene la configuración activa. Si hay varias, toma la última creada que esté activa."""
+    return db.query(RagConfiguration).filter(RagConfiguration.is_active == True).order_by(RagConfiguration.created_at.desc()).first()
+
+def set_rag_config(db: Session, dimension: int, model: str = "gemini-embedding-001") -> RagConfiguration:
+    """
+    Crea una nueva configuración y desactiva las anteriores (historial).
+    Esto es útil si en el futuro queremos ver qué configuración se usó antes.
+    """
+    # Desactivar configuraciones previas
+    db.query(RagConfiguration).update({RagConfiguration.is_active: False})
+    
+    new_config = RagConfiguration(
+        embedding_model=model,
+        embedding_dimension=dimension,
+        is_active=True
+    )
+    db.add(new_config)
+    db.commit()
+    db.refresh(new_config)
+    return new_config
+
+def initialize_rag_config(db: Session):
+    """Crea una configuración por defecto si no existe ninguna."""
+    config = get_active_rag_config(db)
+    if not config:
+        print("[INFO] No se encontró configuración RAG. Inicializando por defecto (768 dim).")
+        set_rag_config(db, dimension=768) # Default recomendado por Google

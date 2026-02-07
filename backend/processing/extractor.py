@@ -1,4 +1,3 @@
-# backend/processing/extractor.py
 import io, fitz, pdfplumber, docx, pandas as pd, pptx
 
 def _get_file_type(filename: str, content_type: str) -> str:

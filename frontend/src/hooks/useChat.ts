@@ -47,14 +47,36 @@ export const useChat = () => {
     const { mutate, isPending: isLoading } = useMutation({
         mutationFn: (params: ChatRequestParams): Promise<{answer: string, chunks: Chunk[]}> => 
             api.post('/api/v1/chat/', params).then(res => res.data),
-        onMutate: (params) => {
+        
+        // 1. Añadimos un mensaje de usuario optimista
+        onMutate: async (params) => {
+            // Cancelar cualquier refetch saliente para que no sobrescriba nuestra UI optimista
+            await queryClient.cancelQueries({ queryKey: ['chat'] });
+
+            // Guardar el estado previo de los mensajes
+            const previousMessages = queryClient.getQueryData<Message[]>(['chat']) || [];
+            
             const userMessage: Message = { id: `user-${Date.now()}`, role: 'user', content: params.question };
+
+            // Actualizar la UI de forma optimista
             setMessages(prev => [...prev, userMessage]);
+
+            // Devolver un objeto de contexto con el estado previo
+            return { previousMessages };
         },
+
+        // 2. Si la mutación tiene éxito, añadimos la respuesta del asistente
         onSuccess: (data, params) => {
-            const assistantMessage: Message = { id: `assistant-${Date.now()}`, role: 'assistant', content: data.answer, chunks: data.chunks };
+            const assistantMessage: Message = { 
+                id: `assistant-${Date.now()}`, 
+                role: 'assistant', 
+                // Asegurarnos de que no hay respuestas vacías o nulas
+                content: data.answer || "Sorry, I couldn't generate a response.", 
+                chunks: data.chunks 
+            };
             setMessages(prev => [...prev, assistantMessage]);
 
+            // Guardar en el historial
             persistChat({
                 conversationId,
                 question: params.question,
@@ -62,10 +84,20 @@ export const useChat = () => {
                 chunks: data.chunks
             });
         },
-        onError: (error) => {
-            const errorMessage: Message = { id: `system-${Date.now()}`, role: 'system', content: `Error: ${error.message}` };
+
+        // 3. Si la mutación falla, revertimos al estado anterior
+        onError: (err, _, context) => {
+            if (context?.previousMessages) {
+                setMessages(context.previousMessages);
+            }
+            const errorMessage: Message = { id: `system-${Date.now()}`, role: 'system', content: `Error: ${err.message}` };
             setMessages(prev => [...prev, errorMessage]);
-        }
+        },
+        
+        // 4. Siempre refetchear o limpiar después del error o éxito
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['chat'] });
+        },
     });
 
     const resumeConversation = (historyItem: ChatHistoryItem) => {

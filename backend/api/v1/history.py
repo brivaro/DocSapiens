@@ -8,47 +8,53 @@ from backend.db.history_crud import create_history, get_history, list_histories,
 
 router = APIRouter()
 
-# Este endpoint ahora crea la PRIMERA entrada de una conversación
 @router.post("/", response_model=ChatHistoryItem)
 def save_history(history: ChatHistoryCreate, db: Session = Depends(get_db)):
-    chunk_strings = [chunk.model_dump_json() for chunk in history.chunks]
-    db_history = create_history(db, [history.question], [history.answer], chunk_strings)
-
+    # Ya no convertimos a strings aquí. Pasamos los objetos Chunk directamente.
+    db_history = create_history(
+        db, 
+        questions=[history.question], 
+        answers=[history.answer], 
+        chunks_for_first_message=history.chunks # Pasamos la lista de objetos
+    )
+    
     return ChatHistoryItem(
         id=str(db_history.id),
         questions=[history.question],
-        answers=[history.answer],    
-        chunks=history.chunks
+        answers=[history.answer],
+        # Envolvemos la lista de chunks en otra lista para que coincida con el modelo List[List[Chunk]]
+        chunks=[history.chunks] 
     )
 
-# Actualiza una conversación existente añadiendo un nuevo mensaje
 @router.put("/{history_id}", response_model=ChatHistoryItem)
 def update_history_endpoint(history_id: str, new_entry: ChatHistoryCreate, db: Session = Depends(get_db)):
-    chunk_strings = [chunk.model_dump_json() for chunk in new_entry.chunks]
-    
+    # Pasamos los objetos Chunk directamente al CRUD
     updated_history = update_history(
         db, 
         history_id=history_id, 
         question=new_entry.question, 
         answer=new_entry.answer,
-        chunks=chunk_strings
+        new_chunks=new_entry.chunks
     )
 
     if not updated_history:
         raise HTTPException(status_code=404, detail="Historial no encontrado")
 
-    parsed_chunks = []
-    for chunk_str in updated_history.chunks:
+    # Reutilizamos la lógica de parseo de los endpoints GET para construir la respuesta
+    nested_parsed_chunks = []
+    for chunk_list_str in updated_history.chunks:
         try:
-            parsed_chunks.append(Chunk.model_validate(json.loads(chunk_str)))
+            list_of_chunk_dicts = json.loads(chunk_list_str)
+            chunks_for_one_msg = [Chunk(**d) for d in list_of_chunk_dicts]
+            nested_parsed_chunks.append(chunks_for_one_msg)
         except (json.JSONDecodeError, TypeError):
-            continue
-
+            nested_parsed_chunks.append([])
+            
     return ChatHistoryItem(
         id=str(updated_history.id),
         questions=updated_history.questions,
-        answers=updated_history.answers,    
-        chunks=parsed_chunks
+        answers=updated_history.answers,
+        chunks=nested_parsed_chunks
     )
 
 # --- ENDPOINT GET ALL ---

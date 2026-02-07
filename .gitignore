@@ -3,8 +3,10 @@ gcp-service-account.json
 
 # Archivos de configuración
 .env
+__pycache__/
+*.pyc
 
 # Archivos de configuración de Python
 alembic_*.*
-backend/alembic.ini
-backend/alembic/*
+
+context*.txt

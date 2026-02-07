@@ -1,0 +1,7 @@
+# Archivos de configuración
+.env
+__pycache__/
+*.pyc
+
+alembic.ini
+alembic/*

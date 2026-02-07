@@ -2,12 +2,12 @@ import base64, os
 import uuid
 import wave
 import io
-from backend.llm_providers.factory import get_llm_provider
+from backend.llm_providers import llm_manager
 from backend.models.generation import ImageGenerationRequest, ImageGenerationResponse, TextToSpeechRequest, TextToSpeechResponse
 
 class GenerationService:
     def __init__(self):
-        self.llm_provider = get_llm_provider()
+        self.llm_provider = llm_manager.get_provider("gemini") # TODO: en el futuro cambia eso para que se pueda decidir otros modelos
         self.AUDIO_DIR = "audio"
         os.makedirs(self.AUDIO_DIR, exist_ok=True)
 

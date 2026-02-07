@@ -1,29 +1,33 @@
+# --- Core Framework ---
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
+pydantic
+pydantic-settings
+
+# --- Base de Datos ---
 sqlalchemy
 alembic
-pydantic
-langchain
-openai
-qdrant-client  # o pinecone-client, chromadb
-tiktoken
-PyMuPDF # fitz y docx ya están cubiertos por PyMuPDF y python-docx
+psycopg2-binary
+
+# --- AI & Vector Store (Google Pure) ---
+google-genai
+qdrant-client
+numpy
+
+# --- Procesamiento de Archivos ---
+PyMuPDF
 python-docx
 pdfplumber
 pandas
-numpy
 openpyxl
 xlrd
 python-pptx
+pillow
 aiofiles
-python-jose[cryptography]  # JWT
-passlib[bcrypt]
-celery
-redis
-loguru
+tiktoken
+
+# --- Utilidades & HTTP ---
 httpx
-protobuf==5.26.1
-psycopg2-binary
-google-genai # para la API de Gemini con solo token (versión gratuita)
-google-cloud-aiplatform # Para los embeddings gestionados, modelos y endpoints de Vertex AI
+python-jose[cryptography]
+passlib[bcrypt]

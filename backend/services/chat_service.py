@@ -1,14 +1,9 @@
 from typing import List
-from backend.models.chat import ChatRequest, ChatResponse, Chunk
+from backend.llm_providers import llm_manager
+from backend.models.chat import ChatRequest, ChatResponse
 from fastapi import HTTPException
 from backend.vectorstore.retriever import retrieve_chunks
-from backend.llm_providers.factory import get_llm_provider
-from backend.llm_providers.base import LLMProvider
-
 class ChatService:
-    def __init__(self, llm_provider: LLMProvider):
-        self.llm_provider = llm_provider
-
     def chat(self, request: ChatRequest) -> ChatResponse:
         try:
             chunks = retrieve_chunks(
@@ -23,12 +18,15 @@ class ChatService:
             
             context = "\n".join([chunk.text for chunk in chunks if chunk.text])
             
-            answer = self.llm_provider.generate_chat_completion(
-                # Contexto
+            # 1. Obtenemos el proveedor adecuado para el modelo solicitado
+            provider = llm_manager.get_provider(request.model)
+            
+            # 2. Llamamos al método de ese proveedor, pasando la petición completa
+            answer = provider.generate_chat_completion(
                 context=context,
                 question=request.question,
                 model=request.model,
-                # Configurations for the chat generation
+                # Pasamos todos los parámetros para que el proveedor los use
                 system_instruction=request.system_instruction,
                 temperature=request.temperature,
                 max_output_tokens=request.max_output_tokens,
@@ -37,7 +35,10 @@ class ChatService:
             )
             
             return ChatResponse(answer=answer, chunks=chunks)
+        except ValueError as ve:
+             # Captura errores de selección de proveedor
+            raise HTTPException(status_code=400, detail=str(ve))
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-chat_service = ChatService(llm_provider=get_llm_provider())
+chat_service = ChatService()

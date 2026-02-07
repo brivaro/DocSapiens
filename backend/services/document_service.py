@@ -1,5 +1,6 @@
 from datetime import datetime
 from backend.db.models import Document
+from backend.llm_providers import llm_manager
 from fastapi import BackgroundTasks
 from typing import List
 import uuid
@@ -7,15 +8,11 @@ from backend.db import crud
 from sqlalchemy.orm import Session
 from backend.db.session import SessionLocal
 from backend.models.document import DocumentCreate, DocumentResponse, DocumentChunk
-from backend.llm_providers.factory import get_llm_provider
 from backend.processing.extractor import _extract_text_from_content
 from backend.processing.splitter import _split_text
 from backend.vectorstore.qdrant import generate_vector_to_qdrant, upsert_vectors, get_chunks_by_document_id, delete_chunks_by_document_id
 
 class DocumentService:
-    def __init__(self):
-        self.llm_provider = get_llm_provider()
-        
     def create_document(self, doc: DocumentCreate, background_tasks: BackgroundTasks, db: Session) -> Document:
         """
         Crea el registro del documento en la DB y lanza la tarea de procesamiento pesado
@@ -109,7 +106,8 @@ class DocumentService:
                 
                 #vectors = embedding_service.generate_embeddings(chunks, doc_id, doc)
                 texts = [chunk.text for chunk in chunks]
-                vectors = self.llm_provider.generate_embeddings(texts, doc_id)
+                embedding_provider = llm_manager.get_default_embedding_provider()
+                vectors = embedding_provider.generate_embeddings(texts, doc_id)
 
                 vectors_to_qdrant = generate_vector_to_qdrant(vectors, chunks, doc_id, doc)
                 
