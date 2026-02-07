@@ -6,10 +6,9 @@ from qdrant_client.http.models import (
     PointStruct, VectorParams, Distance, Filter, 
     FieldCondition, MatchValue, MatchAny, FilterSelector
 )
-from app.models.document import DocumentChunk, DocumentCreate
+from app.models.document import DocumentChunk
 from app.settings.config import settings
 
-# Configuración básica
 QDRANT_HOST = settings.QDRANT_HOST
 QDRANT_PORT = int(settings.QDRANT_PORT)
 BASE_COLLECTION_NAME = settings.QDRANT_COLLECTION
@@ -17,41 +16,23 @@ BASE_COLLECTION_NAME = settings.QDRANT_COLLECTION
 client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
 
 def _get_collection_name(dimension: int) -> str:
-    """
-    Genera el nombre de la colección basado en la dimensión.
-    Ej: 'docsapiens_768'
-    """
     return f"{BASE_COLLECTION_NAME}_{dimension}"
 
 def ensure_collection(dimension: int):
-    """
-    Asegura que exista la colección para la dimensión específica.
-    """
     collection_name = _get_collection_name(dimension)
     try:
         if not client.collection_exists(collection_name):
-            logging.info(f"[QDRANT] Creando colección '{collection_name}' con dimensión {dimension}...")
+            logging.info(f"[QDRANT] Creando colección '{collection_name}' (dim={dimension})...")
             client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(size=dimension, distance=Distance.COSINE)
             )
-        else:
-            logging.info(f"[QDRANT] La colección '{collection_name}' ya existe.")
     except Exception as e:
-        logging.info(f"[ERROR] Fallo al asegurar colección Qdrant: {e}")
+        logging.error(f"[QDRANT ERROR] Fallo creando colección: {e}")
 
-def generate_vector_objects(
-        embeddings: List[List[float]], 
-        chunks: List[DocumentChunk], 
-        doc_id: str, 
-        doc: DocumentCreate
-) -> List[dict]:
-    """
-    Prepara los objetos (puntos) para insertar en Qdrant.
-    """
+def generate_vector_objects(embeddings: List[List[float]], chunks: List[DocumentChunk], doc_id: str, filename: str, tags: List[str]) -> List[dict]:
     vectors = []
     for i, chunk in enumerate(chunks):
-        # Validación de seguridad para asegurar que hay un embedding para cada chunk
         if i < len(embeddings):
             vectors.append({
                 "id": str(uuid.uuid4()),
@@ -59,65 +40,29 @@ def generate_vector_objects(
                 "payload": {
                     "document_id": doc_id, 
                     "chunk_id": chunk.chunk_id,
-                    "filename": doc.filename,
-                    "content_type": doc.content_type,
-                    "start": chunk.start, 
-                    "end": chunk.end, 
+                    "filename": filename,
                     "text": chunk.text,
-                    "tags": doc.tags or []
+                    "start": chunk.start,
+                    "end": chunk.end,
+                    "tags": tags or []
                 }
             })
     return vectors
 
 def upsert_vectors(vectors: list[dict], dimension: int):
-    """
-    Inserta vectores en la colección correspondiente a la dimensión.
-    """
     collection_name = _get_collection_name(dimension)
-    
-    # Convertimos dicts a PointStruct
-    points = [
-        PointStruct(id=v["id"], vector=v["vector"], payload=v["payload"]) 
-        for v in vectors
-    ]
-    
-    # Batch upsert
-    # Qdrant maneja bien batches grandes, pero por seguridad si son miles se podría paginar.
+    points = [PointStruct(id=v["id"], vector=v["vector"], payload=v["payload"]) for v in vectors]
     client.upsert(collection_name=collection_name, points=points, wait=True)
 
-def search_vectors(
-    query_vector: List[float], 
-    dimension: int,
-    top_k: int = 5, 
-    document_ids: List[str] = None,
-    tags: List[str] = None
-):
-    """
-    Busca chunks similares en la colección específica.
-    """
+def search_vectors(query_vector: List[float], dimension: int, top_k: int = 5, document_ids: List[str] = None, tags: List[str] = None):
     collection_name = _get_collection_name(dimension)
-    
-    # Construcción dinámica de filtros
-    search_filter = None
     conditions = []
-
     if document_ids:
-        conditions.append(
-            FieldCondition(key="document_id", match=MatchAny(any=document_ids))
-        )
-    
+        conditions.append(FieldCondition(key="document_id", match=MatchAny(any=document_ids)))
     if tags:
-        conditions.append(
-            FieldCondition(key="tags", match=MatchAny(any=tags))
-        )
-
-    if conditions:
-        # Usamos lógica 'should' (OR) si hay múltiples criterios, o 'must' si quieres ser estricto.
-        # En tu código anterior usabas una lógica mixta. Aquí la simplifico a:
-        # Si hay docs Y tags -> Debe cumplir (Docs O Tags) -> Filter(should=...)
-        # Ajusta esto según tu lógica de negocio deseada. 
-        # Aquí asumiré que si filtra por doc y tag, quiere que cumpla AL MENOS UNO de los criterios.
-        search_filter = Filter(should=conditions)
+        conditions.append(FieldCondition(key="tags", match=MatchAny(any=tags)))
+    
+    search_filter = Filter(should=conditions) if conditions else None
 
     return client.search(
         collection_name=collection_name,
@@ -127,40 +72,46 @@ def search_vectors(
         with_payload=True
     )
 
-def get_stored_document_ids(dimension: int) -> Set[str]:
-    """
-    Crucial para la sincronización: Devuelve un SET con los IDs de documentos 
-    que YA existen en la colección de esta dimensión.
-    """
+def fetch_chunks_by_document_id(doc_id: str, dimension: int, limit: int = 2000) -> List[DocumentChunk]:
+    """Recupera los chunks de un documento en una colección específica."""
     collection_name = _get_collection_name(dimension)
-    
-    # Verificamos si existe primero para no dar error
-    if not client.collection_exists(collection_name):
-        return set()
+    if not client.collection_exists(collection_name): return []
 
-    # Usamos scroll para recuperar solo los IDs únicos (agregación manual)
-    # Nota: Qdrant tiene una API de 'Facet' o 'Group By' que es más eficiente,
-    # pero scroll es seguro para versiones estándar.
-    
-    # Optimizacion: Solo traemos el payload 'document_id'
     response, _ = client.scroll(
         collection_name=collection_name,
-        limit=10000, # Límite alto para chequear. Si tienes >10k docs, necesitarás paginar este loop.
-        with_payload=["document_id"],
+        scroll_filter=Filter(must=[FieldCondition(key="document_id", match=MatchValue(value=doc_id))]),
+        limit=limit,
+        with_payload=True,
         with_vectors=False
     )
     
-    existing_ids = set()
-    for point in response:
-        if "document_id" in point.payload:
-            existing_ids.add(point.payload["document_id"])
-            
-    return existing_ids
+    chunks = [
+        DocumentChunk(
+            document_id=pt.payload.get("document_id"),
+            chunk_id=pt.payload.get("chunk_id"),
+            text=pt.payload.get("text"),
+            start=pt.payload.get("start", 0),
+            end=pt.payload.get("end", 0)
+        ) for pt in response
+    ]
+    return sorted(chunks, key=lambda x: x.chunk_id)
 
-def delete_chunks_by_document_id(doc_id: str, dimension: int):
-    """
-    Elimina chunks de un documento en una colección específica.
-    """
+def get_stored_document_ids(dimension: int) -> Set[str]:
+    """Obtiene todos los IDs de documentos presentes en una dimensión específica."""
+    collection_name = _get_collection_name(dimension)
+    if not client.collection_exists(collection_name): return set()
+    
+    # Scroll simple (si hay muchísimos documentos, esto debería paginarse en bucle)
+    response, _ = client.scroll(
+        collection_name=collection_name, 
+        limit=10000, 
+        with_payload=["document_id"], 
+        with_vectors=False
+    )
+    return {pt.payload["document_id"] for pt in response if "document_id" in pt.payload}
+
+def delete_document_from_collection(doc_id: str, dimension: int):
+    """Borra un documento solo de la colección especificada (Granular)."""
     collection_name = _get_collection_name(dimension)
     if client.collection_exists(collection_name):
         client.delete(
@@ -169,13 +120,10 @@ def delete_chunks_by_document_id(doc_id: str, dimension: int):
                 filter=Filter(must=[FieldCondition(key="document_id", match=MatchValue(value=doc_id))])
             )
         )
+        logging.info(f"[QDRANT] Documento {doc_id} eliminado de {collection_name}")
 
 def delete_all_chunks_for_document_globally(doc_id: str):
-    """
-    Si borramos un documento de la base de datos, debemos borrarlo de TODAS 
-    las colecciones posibles (768, 1536, etc.) para limpiar basura.
-    """
-    # Intentamos borrar en todas las dimensiones conocidas o iteramos colecciones
+    """Borra un documento de TODAS las colecciones (Limpieza total)."""
     try:
         collections = client.get_collections().collections
         for col in collections:
@@ -186,6 +134,5 @@ def delete_all_chunks_for_document_globally(doc_id: str):
                         filter=Filter(must=[FieldCondition(key="document_id", match=MatchValue(value=doc_id))])
                     )
                 )
-                logging.info(f"[QDRANT] Documento {doc_id} eliminado de {col.name}")
     except Exception as e:
-        logging.info(f"[ERROR] Limpieza global falló: {e}")
+        logging.error(f"[QDRANT ERROR] Limpieza global falló: {e}")

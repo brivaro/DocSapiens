@@ -3,10 +3,11 @@ import logging
 import warnings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import documents, chat, embeddings, history, settings as api_settings
+from app.api.v1 import documents, chat, history, settings as api_settings
 from app.db.session import engine, Base, SessionLocal
 from app.db import crud
 from app.settings.config import settings
+from backend.app.api.v1 import generation
 
 Base.metadata.create_all(bind=engine)
 
@@ -41,7 +42,7 @@ app.add_middleware(
 
 app.include_router(documents.router, prefix="/api/v1/documents", tags=["Documentos"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
-app.include_router(embeddings.router, prefix="/api/v1/embeddings", tags=["Embeddings"]) 
+app.include_router(generation.router, prefix="/api/v1/embeddings", tags=["AI Voice"]) 
 app.include_router(history.router, prefix="/api/v1/history", tags=["History"])
 app.include_router(api_settings.router, prefix="/api/v1/settings", tags=["Settings"])
 

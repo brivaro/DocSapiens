@@ -1,200 +1,204 @@
 import logging
-from typing import List
+import hashlib
+from typing import List, Optional
 from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.db import crud
 from app.db.models import Document
 from app.db.session import SessionLocal
-from app.models.document import DocumentCreate, DocumentResponse, DocumentChunk
+from app.models.document import DocumentCreate, DocumentResponse, DocumentChunk, DocumentUpdateParams
 from app.processing.extractor import _extract_text_from_content
 from app.processing.splitter import _split_text
 from app.vectorstore import qdrant
 from app.services.google_service import google_service
 
 class DocumentService:
-    def create_document(self, doc: DocumentCreate, background_tasks: BackgroundTasks, db: Session) -> Document:
-        """
-        Crea el registro y lanza el procesamiento en segundo plano.
-        """
-        db_doc = self.crud.get_document_by_filename(db, doc.filename)
+    # --- PROPIEDADES ---
+    @property
+    def crud(self): return crud
+    
+    @staticmethod
+    def db_session(): return SessionLocal()
 
-        if db_doc:
-            logging.info(f"[INFO] Documento '{doc.filename}' ya existe. Actualizando...")
-            self.crud.update_document(db, db_doc, doc)
-            # Limpiamos chunks viejos de TODAS las colecciones para evitar duplicados fantasma
-            qdrant.delete_all_chunks_for_document_globally(str(db_doc.id))
+    # --- CREACIÓN / SUBIDA ---
+    def create_document(self, doc: DocumentCreate, background_tasks: BackgroundTasks, db: Session) -> Document:
+        file_hash = hashlib.md5(doc.content).hexdigest()
+        existing_doc = self.crud.get_document_by_filename(db, doc.filename)
+
+        if existing_doc:
+            logging.info(f"[INFO] Documento '{doc.filename}' existente. Actualizando configuración y contenido...")
+            # Al subir de nuevo el mismo archivo, asumimos que el usuario quiere "resetear" este archivo.
+            # Por tanto, borramos sus chunks de TODAS las colecciones para evitar inconsistencias.
+            qdrant.delete_all_chunks_for_document_globally(str(existing_doc.id))
+            db_doc = self.crud.update_document(db, existing_doc, doc)
         else:
             logging.info(f"[INFO] Creando documento '{doc.filename}'.")
             db_doc = self.crud.create_document(db, doc)
-
-        # Lanzar tarea de procesamiento
-        background_tasks.add_task(self._process_document_task, str(db_doc.id), doc.dict())
         
+        db_doc.file_hash = file_hash
+        db.commit()
+
+        # Procesar para la dimensión ACTIVA
+        background_tasks.add_task(self._process_document_task, str(db_doc.id))
         return db_doc
-    
+
+    # --- RE-INDEXADO (Cambiar parámetros sin subir archivo) ---
+    def reindex_document(self, doc_id: str, params: DocumentUpdateParams, background_tasks: BackgroundTasks) -> Document:
+        with self.db_session() as db:
+            # 1. Obtener doc y config activa
+            db_doc = self.crud.get_document_by_id(db, doc_id)
+            if not db_doc: raise ValueError("Documento no encontrado")
+            
+            config = self.crud.get_active_rag_config(db)
+            active_dim = config.embedding_dimension if config else 768
+
+            # 2. Actualizar parámetros en BD
+            updates = params.model_dump(exclude_unset=True)
+            updated_doc = self.crud.update_document_config(db, doc_id, updates)
+            
+            # 3. Borrar chunks SOLO de la colección activa (preserva otras dimensiones)
+            qdrant.delete_document_from_collection(doc_id, active_dim)
+            
+            logging.info(f"[REINDEX] Re-indexando documento {doc_id} en dimensión {active_dim}...")
+            
+            # 4. Lanzar tarea
+            background_tasks.add_task(self._process_document_task, doc_id)
+            
+            return updated_doc
+
+    # --- BORRADO ---
     def delete_document(self, doc_id: str) -> None:
-        # 1. Eliminar de PostgreSQL
         with self.db_session() as db:
             self.crud.delete_document(db, doc_id)
-
-        # 2. Eliminar de TODAS las colecciones de Qdrant (limpieza global)
+        # Si se borra de la BD, se borra de TODOS lados
         qdrant.delete_all_chunks_for_document_globally(doc_id)
 
+    # --- LISTADO ---
     def list_documents(self) -> List[DocumentResponse]:
         with self.db_session() as db:
-            db_documents = self.crud.list_documents(db)
-            return [
-                DocumentResponse(
-                    id=str(d.id),
-                    filename=d.filename,
-                    content_type=d.content_type,
-                    size=d.size,
-                    uploaded_at=d.uploaded_at.isoformat(),
-                    status=d.status,
-                    tags=d.tags
-                ) for d in db_documents
-            ]
+            docs = self.crud.list_documents(db)
+            return [DocumentResponse.model_validate(d) for d in docs]
 
+    # --- OBTENCIÓN DE CHUNKS ---
     def get_document_chunks(self, doc_id: str) -> List[DocumentChunk]:
-        # Para ver chunks, miramos en la colección por defecto o activa?
-        # Por simplicidad para debug, miramos en la activa.
         with self.db_session() as db:
             config = self.crud.get_active_rag_config(db)
-            # Si no hay config, fallback 768
             dim = config.embedding_dimension if config else 768
-            
-        # TODO: Implementar get en qdrant.py si es necesario para el frontend, 
-        # actualmente qdrant.py no exportaba 'get_chunks_by_document_id' con dimension.
-        # Dejamos un return vacio por ahora si no es crítico, o lo implementamos.
-        return [] 
-    
+        return qdrant.fetch_chunks_by_document_id(doc_id, dim)
+
+    # --- SINCRONIZACIÓN DE COLECCIONES ---
     def sync_active_collection(self):
         """
-        [NUEVO] Sincroniza la colección activa de Qdrant con la base de datos PostgreSQL.
-        Se llama cuando cambia la configuración de dimensionalidad.
+        Detecta documentos en la BD que no están en la colección Qdrant ACTIVA y los procesa.
+        NO borra nada. Solo añade lo que falta (Import).
         """
-        logging.info("[SYNC] Iniciando sincronización de colección activa...")
+        logging.info("[SYNC] Iniciando sincronización...")
         with self.db_session() as db:
-            # 1. Obtener configuración activa
             config = self.crud.get_active_rag_config(db)
-            if not config:
-                logging.info("[SYNC ERROR] No hay configuración activa.")
-                return
+            if not config: return
             
             target_dim = config.embedding_dimension
-            target_model = config.embedding_model
-            
-            # 2. Asegurar que la colección existe en Qdrant
             qdrant.ensure_collection(target_dim)
             
-            # 3. Obtener documentos en PostgreSQL
-            all_db_docs = self.crud.list_documents(db)
-            if not all_db_docs:
-                logging.info("[SYNC] No hay documentos en la BD para sincronizar.")
+            all_docs = self.crud.list_documents(db)
+            # IDs que YA están en esta dimensión
+            qdrant_ids = qdrant.get_stored_document_ids(target_dim)
+            
+            missing_docs = [d for d in all_docs if str(d.id) not in qdrant_ids]
+            
+            if not missing_docs:
+                logging.info(f"[SYNC] Colección {target_dim} sincronizada.")
                 return
 
-            # 4. Obtener documentos que YA están en Qdrant (para esa dimensión)
-            stored_ids = qdrant.get_stored_document_ids(target_dim)
+            logging.info(f"[SYNC] Importando {len(missing_docs)} documentos faltantes a dim={target_dim}...")
             
-            # 5. Detectar faltantes
-            docs_to_process = [d for d in all_db_docs if str(d.id) not in stored_ids]
-            
-            if not docs_to_process:
-                logging.info(f"[SYNC] La colección (dim={target_dim}) ya está sincronizada.")
-                return
-            
-            logging.info(f"[SYNC] Se encontraron {len(docs_to_process)} documentos pendientes para la dimensión {target_dim}.")
-            
-            # 6. Procesar faltantes (Reutilizando lógica)
-            for doc in docs_to_process:
-                # Reconstruimos el objeto DocumentCreate para pasarlo a la tarea
-                # Nota: Si text_content ya existe en DB, _process_document_task lo usará
-                doc_create_fake = {
-                    "filename": doc.filename,
-                    "content_type": doc.content_type,
-                    "content": doc.content, # Esto es bytes
-                    "split_by": doc.split_by,
-                    "tags": doc.tags,
-                    # Valores por defecto si no se guardaron (podríamos guardar chunk_size en DB en el futuro)
-                    "chunk_size": 1000, 
-                    "overlap": 200,
-                    "split_mode": "delimiter"
-                }
-                # Ejecutamos síncronamente o lanzamos hilos. 
-                # Como esto corre en background task desde el endpoint de settings, 
-                # podemos hacerlo secuencial aquí.
-                self._process_document_task(str(doc.id), doc_create_fake, sync_mode=True)
+            for doc in missing_docs:
+                # Procesamos secuencialmente en el hilo de background
+                self._process_document_task(str(doc.id), sync_dimension=target_dim)
 
-    def _process_document_task(self, doc_id: str, doc_create_dict: dict, sync_mode: bool = False) -> None:
-        doc = DocumentCreate(**doc_create_dict)
-        
+    # --- TAREA DE PROCESAMIENTO (CORE) ---
+    def _process_document_task(self, doc_id: str, sync_dimension: int = None) -> None:
+        """
+        Tarea unificada. Lee la configuración del doc desde la BD,
+        extrae texto (o usa caché), hace split, embed y upsert.
+        """
         with self.db_session() as db:
             try:
-                # 1. Obtener Configuración Activa
-                config = self.crud.get_active_rag_config(db)
-                # Fallback de seguridad
-                dimension = config.embedding_dimension if config else 768
-                model_name = config.embedding_model if config else "gemini-embedding-001"
+                # 1. Configuración
+                db_doc = self.crud.get_document_by_id(db, doc_id)
+                if not db_doc: return
 
-                # Asegurar colección (por si acaso es el primer doc)
+                if sync_dimension:
+                    dimension = sync_dimension
+                else:
+                    config = self.crud.get_active_rag_config(db)
+                    dimension = config.embedding_dimension if config else 768
+                
+                model_name = "gemini-embedding-001" # O leer de config
                 qdrant.ensure_collection(dimension)
 
-                logging.info(f"[TASK] Procesando doc {doc_id} para dim={dimension}...")
+                self.crud.update_document_field(db, doc_id, "status", "processing")
                 
-                # 2. Extracción de Texto
-                db_doc = self.crud.get_document_by_id(db, doc_id)
-                text = db_doc.text_content # Intentar leer de cache DB
-
+                # 2. Texto
+                text = db_doc.text_content
                 if not text:
-                    if not sync_mode:
-                        self.crud.update_document_field(db, doc_id, "status", "processing")
-                    
-                    logging.info(f"[TASK] Extrayendo texto nuevo...")
-                    text = _extract_text_from_content(doc.content, doc.content_type, doc.filename)
-                    
-                    if text and "Unsupported file" not in text:
+                    logging.info(f"[TASK] Extrayendo texto nuevo para {db_doc.filename}...")
+                    text = _extract_text_from_content(db_doc.content, db_doc.content_type, db_doc.filename)
+                    if text and "Unsupported" not in text:
                         self.crud.update_document_field(db, doc_id, "text_content", text)
-                else:
-                    logging.info(f"[TASK] Texto reutilizado de la base de datos (Cache).")
-
-                if not text or "Unsupported file" in text:
-                    self.crud.update_document_field(db, doc_id, "status", "failed")
-                    return
-
-                # 3. Splitting
-                chunks = _split_text(text, doc_id, doc)
-                texts = [c.text for c in chunks]
+                        db.commit() # Guardar cache
+                        db.refresh(db_doc) # Refrescar objeto local
                 
-                # 4. Embeddings (Google)
-                vectors = google_service.generate_embeddings(
-                    texts=texts, 
-                    model=model_name, 
-                    dimension=dimension
-                )
+                if not text or "Unsupported" in text or "Error" in text:
+                    raise ValueError(f"No se pudo extraer texto válido: {text[:50]}...")
 
-                # 5. Qdrant Upsert
-                vector_objs = qdrant.generate_vector_objects(vectors, chunks, doc_id, doc)
-                if vector_objs:
-                    qdrant.upsert_vectors(vector_objs, dimension)
+                # 3. Preparar objeto temporal para el splitter (usando configuración de la BD)
+                # Necesitamos pasarle un objeto que tenga los atributos que espera splitter
+                class DocParams:
+                    split_mode = db_doc.split_mode
+                    split_by = db_doc.split_by
+                    chunk_size = db_doc.chunk_size
+                    overlap = db_doc.overlap
+                    content_type = db_doc.content_type
+                    content = db_doc.content # Raw bytes necesario para PDF/Excel pages splitter
+                    filename = db_doc.filename
 
-                # Solo actualizamos a "processed" si no estamos en modo sync (para no machacar estados si hay concurrencia, aunque aquí simplificamos)
-                if not sync_mode:
-                    self.crud.update_document_field(db, doc_id, "status", "processed")
+                # 4. Split
+                chunks = _split_text(text, str(db_doc.id), DocParams)
+                if not chunks:
+                    raise ValueError("El splitter no generó chunks.")
+
+                texts_to_embed = [c.text for c in chunks]
                 
-                logging.info(f"[TASK] Fin procesamiento doc {doc_id}.")
+                # 5. Embedding
+                logging.info(f"[TASK] Generando {len(texts_to_embed)} embeddings (dim={dimension})...")
+                vectors = google_service.generate_embeddings(texts_to_embed, model_name, dimension)
+
+                # 6. Upsert (Pasamos parámetros para el payload de Qdrant)
+                # Creamos un objeto dummy para generate_vector_objects que espera tags y filename
+                class DocMetadata:
+                    filename = db_doc.filename
+                    tags = db_doc.tags
+                    content_type = db_doc.content_type
+
+                vector_objs = qdrant.generate_vector_objects(vectors, chunks, str(db_doc.id), db_doc.filename, db_doc.tags)
+                qdrant.upsert_vectors(vector_objs, dimension)
+
+                # 7. Finalizar
+                db_doc.status = "processed"
+                db_doc.chunk_count = len(chunks)
+                db_doc.error_message = None
+                db.commit()
+                logging.info(f"[TASK] Doc {doc_id} procesado OK.")
 
             except Exception as e:
-                logging.info(f"[ERROR] Task doc {doc_id}: {e}")
-                if 'db' in locals() and not sync_mode:
-                    self.crud.update_document_field(db, doc_id, "status", "failed")
-
-    @staticmethod
-    def db_session():
-        return SessionLocal()
-
-    @property
-    def crud(self):
-        return crud
+                logging.error(f"[TASK ERROR] Doc {doc_id}: {e}", exc_info=True)
+                # Re-obtener doc por si la sesión se cerró o expiró
+                db_doc = self.crud.get_document_by_id(db, doc_id)
+                if db_doc:
+                    db_doc.status = "failed"
+                    db_doc.error_message = str(e)
+                    db.commit()
 
 document_service = DocumentService()

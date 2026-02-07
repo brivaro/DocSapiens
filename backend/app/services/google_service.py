@@ -1,5 +1,4 @@
 import logging
-import os
 import numpy as np
 from typing import List, Optional, Iterator
 from google import genai
@@ -9,7 +8,6 @@ from app.settings.config import settings
 
 class GoogleService:
     def __init__(self):
-        # La API Key se toma automáticamente de os.environ["GEMINI_API_KEY"]
         try:
             self.client = genai.Client()
         except Exception as e:
@@ -22,33 +20,21 @@ class GoogleService:
         Si la dimensión es menor a la nativa (3072), normaliza los vectores usando L2 norm.
         """
         try:
-            # Petición a la API de Google
-            # Nota: embed_content acepta una lista de textos
             response = self.client.models.embed_content(
                 model=model,
                 contents=texts,
-                config=types.EmbedContentConfig(
-                    output_dimensionality=dimension
-                )
+                config=types.EmbedContentConfig(output_dimensionality=dimension)
             )
-
-            # Procesamiento y Normalización
             final_embeddings = []
             for emb in response.embeddings:
                 vector = np.array(emb.values)
-                
-                # Google Docs dice: "For other dimensions (than 3072)... you need to normalize"
                 if dimension != 3072:
                     norm = np.linalg.norm(vector)
-                    if norm > 0:
-                        vector = vector / norm
-                
+                    if norm > 0: vector = vector / norm
                 final_embeddings.append(vector.tolist())
-
             return final_embeddings
-
         except Exception as e:
-            logging.info(f"[ERROR] Fallo generando embeddings ({model}, dim={dimension}): {e}")
+            logging.info(f"[ERROR] Fallo generando embeddings: {e}")
             raise
 
     def chat_completion(
@@ -62,7 +48,6 @@ class GoogleService:
     ) -> str:
         """Generación de texto simple (no streaming)."""
         config = self._build_gen_config(temperature, max_tokens, thinking_budget)
-        
         try:
             response = self.client.models.generate_content(
                 model=model,
@@ -74,7 +59,8 @@ class GoogleService:
             logging.info(f"[ERROR] Chat completion falló: {e}")
             raise
 
-    def chat_stream(
+    # --- NUEVO MÉTODO PARA STREAMING ---
+    def chat_stream_generator(
         self, 
         model: str = None, 
         prompt: str = "", 
@@ -83,32 +69,37 @@ class GoogleService:
         max_tokens: Optional[int] = None,
         thinking_budget: Optional[int] = None
     ) -> Iterator[str]:
-        """Generación de texto en streaming."""
+        """
+        Generador que cede (yields) tokens de texto a medida que llegan de Google.
+        """
         config = self._build_gen_config(temperature, max_tokens, thinking_budget)
 
         try:
+            # Usamos generate_content_stream
             response = self.client.models.generate_content_stream(
                 model=model,
                 contents=prompt,
                 config=config.model_copy(update={"system_instruction": system_instruction}) if system_instruction else config
             )
+            
             for chunk in response:
-                if chunk.text:
+                # Dependiendo de la versión de la librería, el texto puede estar en chunk.text o chunk.parts[0].text
+                if hasattr(chunk, 'text') and chunk.text:
                     yield chunk.text
+                elif hasattr(chunk, 'candidates') and chunk.candidates:
+                     for part in chunk.candidates[0].content.parts:
+                         if part.text:
+                             yield part.text
+
         except Exception as e:
-            logging.info(f"[ERROR] Chat stream falló: {e}")
-            yield f"\n[Error genernado respuesta: {str(e)}]"
+            logging.error(f"[ERROR] Google Chat Stream falló: {e}")
+            yield f"\n[Error de generación: {str(e)}]"
 
     def generate_audio(self, text: str, voice_name: str = "Kore", model: str = None) -> bytes:
-        """
-        Genera audio usando las capacidades multimodales de Gemini 2.5 Flash.
-        """
+        # ... (CÓDIGO EXISTENTE IGUAL) ...
         model_to_use = model or settings.DEFAULT_TTS_MODEL
-        
         try:
-            # Prompt específico para controlar la generación de audio
             prompt = f"Please read the following text clearly and professionally: {text}"
-            
             response = self.client.models.generate_content(
                 model=model_to_use,
                 contents=prompt,
@@ -123,15 +114,11 @@ class GoogleService:
                     )
                 )
             )
-            
-            # Extraer bytes de audio del primer candidato
             if response.candidates and response.candidates[0].content.parts:
                 for part in response.candidates[0].content.parts:
                     if part.inline_data and part.inline_data.mime_type.startswith("audio"):
                         return part.inline_data.data
-            
-            raise ValueError("El modelo no devolvió datos de audio.")
-
+            raise ValueError("No audio data returned")
         except Exception as e:
             logging.info(f"[ERROR] TTS falló: {e}")
             raise
@@ -145,13 +132,8 @@ class GoogleService:
             max_output_tokens=max_tokens
         )
 
-        # Thinking budget (solo para modelos 2.5 flash/pro que lo soporten)
-        # Nota: Aquí asumimos que si el usuario lo envía, el modelo lo soporta. 
-        # O podríamos filtrar por nombre de modelo si fuera estricto.
         if thinking_budget is not None and thinking_budget > 0:
             conf.thinking_config = types.ThinkingConfig(thinking_budget=thinking_budget)
-        
         return conf
 
-# Instancia singleton para usar en toda la app
 google_service = GoogleService()

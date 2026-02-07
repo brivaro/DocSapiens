@@ -9,13 +9,30 @@ class Document(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, nullable=False)
     filename = Column(String, nullable=False)
     content_type = Column(String, nullable=False)
-    content = Column(LargeBinary, nullable=False) # TODO: Lo mantendremos por ahora, pasarlo a MINI IO
+    
+    # Hash para detectar duplicados de contenido exacto
+    file_hash = Column(String, index=True, nullable=True)
+    
+    # Contenido binario original (para poder re-procesar con otros parámetros)
+    content = Column(LargeBinary, nullable=False)
     size = Column(Integer, nullable=False)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Cache de texto extraído (para no usar OCR/Extractores pesados al re-indexar)
     text_content = Column(Text, nullable=True)
-    split_by = Column(String, nullable=True, default="\n\n") 
+    
+    # Configuración de Split usada (Persistencia para UI)
+    split_mode = Column(String, default="delimiter", nullable=False)
+    split_by = Column(String, nullable=True, default="\n\n")
+    chunk_size = Column(Integer, nullable=True, default=1000)
+    overlap = Column(Integer, nullable=True, default=200)
+    
     tags = Column(ARRAY(String), nullable=True)
+    
+    # Estadísticas y Estado
+    chunk_count = Column(Integer, default=0)
     status = Column(String, default="pending", nullable=False) # "pending", "processing", "processed", "failed"
+    error_message = Column(Text, nullable=True)
 
 class History(Base):
     __tablename__ = "history"
@@ -28,6 +45,7 @@ class RagConfiguration(Base):
     __tablename__ = "rag_configuration"
     id = Column(Integer, primary_key=True, index=True)
     embedding_model = Column(String, default="gemini-embedding-001", nullable=False)
+    # La dimensión define la colección activa (ej: docsapiens_768)
     embedding_dimension = Column(Integer, default=768, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
