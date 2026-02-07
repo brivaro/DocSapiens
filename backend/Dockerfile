@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=off \
     PIP_DISABLE_PIP_VERSION_CHECK=on
 
-WORKDIR /app
+WORKDIR /code
 
 # Instalar dependencias del sistema necesarias
 # libpq-dev: para psycopg2 (PostgreSQL)
@@ -36,4 +36,4 @@ EXPOSE 8000
 # USER myuser
 
 # Comando de inicio
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8082", "--log-config", "/code/logging.ini"]
