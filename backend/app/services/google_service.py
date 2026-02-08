@@ -14,27 +14,48 @@ class GoogleService:
             logging.info(f"[CRITICAL] Error inicializando Google GenAI Client: {e}")
             raise
 
-    def generate_embeddings(self, texts: List[str], model: str, dimension: int) -> List[List[float]]:
+    def generate_embeddings(
+        self, 
+        texts: List[str], 
+        model: str, 
+        dimension: int,
+        task_type: str = "RETRIEVAL_DOCUMENT", # Default para documentos
+        doc_title: Optional[str] = None # Google recomienda título para documentos
+    ) -> List[List[float]]:
         """
-        Genera embeddings usando el modelo especificado y aplica MRL (Matryoshka Representation Learning).
-        Si la dimensión es menor a la nativa (3072), normaliza los vectores usando L2 norm.
+        Genera embeddings usando task_type específico y MRL.
         """
         try:
+            config = types.EmbedContentConfig(
+                output_dimensionality=dimension,
+                task_type=task_type,
+                title=doc_title if task_type == "RETRIEVAL_DOCUMENT" else None
+            )
+
+            # Nota: Si doc_title se pasa, Google prefiere que sea un solo contenido o 
+            # que todos los chunks pertenezcan a ese título. 
+            # Como procesamos por documento en el service, esto es válido.
+            
             response = self.client.models.embed_content(
                 model=model,
                 contents=texts,
-                config=types.EmbedContentConfig(output_dimensionality=dimension)
+                config=config
             )
+            
             final_embeddings = []
-            for emb in response.embeddings:
+            embeddings_list = response.embeddings if hasattr(response, 'embeddings') else []
+            
+            for emb in embeddings_list:
                 vector = np.array(emb.values)
+                # Normalización L2 manual si usamos MRL (dimensiones reducidas)
                 if dimension != 3072:
                     norm = np.linalg.norm(vector)
                     if norm > 0: vector = vector / norm
                 final_embeddings.append(vector.tolist())
+                
             return final_embeddings
         except Exception as e:
-            logging.info(f"[ERROR] Fallo generando embeddings: {e}")
+            logging.info(f"[ERROR] Fallo generando embeddings ({task_type}): {e}")
             raise
 
     def chat_completion(
@@ -96,7 +117,7 @@ class GoogleService:
             yield f"\n[Error de generación: {str(e)}]"
 
     def generate_audio(self, text: str, voice_name: str = "Kore", model: str = None) -> bytes:
-        # ... (CÓDIGO EXISTENTE IGUAL) ...
+        """Generación de audio simple."""
         model_to_use = model or settings.DEFAULT_TTS_MODEL
         try:
             prompt = f"Please read the following text clearly and professionally: {text}"

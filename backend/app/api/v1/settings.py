@@ -23,16 +23,17 @@ def update_config(
     db: Session = Depends(get_db)
 ):
     """
-    Actualiza la dimensión de los embeddings.
-    Esto desencadena una sincronización en segundo plano:
-    1. Crea/Verifica la colección en Qdrant para la nueva dimensión.
-    2. Detecta qué documentos faltan en esa colección.
-    3. Genera embeddings y los sube sin tener que volver a subir el archivo.
+    Actualiza dimensión y/o task_type.
+    Lanza sincronización en background.
     """
-    # 1. Guardar nueva configuración
-    new_config = crud.set_rag_config(db, dimension=config_in.embedding_dimension)
+    # 1. Guardar nueva configuración con el tipo de tarea
+    new_config = crud.set_rag_config(
+        db, 
+        dimension=config_in.embedding_dimension,
+        task_type=config_in.embedding_task_type
+    )
     
-    # 2. Lanzar sincronización en background
+    # 2. Lanzar sincronización (detectará que faltan docs en esta nueva config/dimensión)
     background_tasks.add_task(document_service.sync_active_collection)
     
     return new_config

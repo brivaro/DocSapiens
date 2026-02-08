@@ -45,7 +45,10 @@ class RagConfiguration(Base):
     __tablename__ = "rag_configuration"
     id = Column(Integer, primary_key=True, index=True)
     embedding_model = Column(String, default="gemini-embedding-001", nullable=False)
-    # La dimensión define la colección activa (ej: docsapiens_768)
     embedding_dimension = Column(Integer, default=768, nullable=False)
+    
+    # Persistencia del tipo de tarea
+    embedding_task_type = Column(String, default="RETRIEVAL_DOCUMENT", nullable=False)
+    
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -92,9 +92,21 @@ def delete_document(db: Session, doc_id: str) -> bool:
 def get_active_rag_config(db: Session) -> RagConfiguration:
     return db.query(RagConfiguration).filter(RagConfiguration.is_active == True).order_by(RagConfiguration.created_at.desc()).first()
 
-def set_rag_config(db: Session, dimension: int, model: str = "gemini-embedding-001") -> RagConfiguration:
+def set_rag_config(
+    db: Session, 
+    dimension: int, 
+    task_type: str = "RETRIEVAL_DOCUMENT",
+    model: str = "gemini-embedding-001"
+) -> RagConfiguration:
+    
     db.query(RagConfiguration).update({RagConfiguration.is_active: False})
-    new_config = RagConfiguration(embedding_model=model, embedding_dimension=dimension, is_active=True)
+    
+    new_config = RagConfiguration(
+        embedding_model=model, 
+        embedding_dimension=dimension,
+        embedding_task_type=task_type,
+        is_active=True
+    )
     db.add(new_config)
     db.commit()
     db.refresh(new_config)
@@ -102,4 +114,4 @@ def set_rag_config(db: Session, dimension: int, model: str = "gemini-embedding-0
 
 def initialize_rag_config(db: Session):
     if not get_active_rag_config(db):
-        set_rag_config(db, dimension=768)
+        set_rag_config(db, dimension=768, task_type="RETRIEVAL_DOCUMENT")

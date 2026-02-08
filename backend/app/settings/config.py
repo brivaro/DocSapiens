@@ -11,9 +11,7 @@ class Settings(BaseSettings):
     # --- Google Gemini ---
     GOOGLE_API_KEY: str
     # Modelos por defecto
-    DEFAULT_CHAT_MODEL: str
     DEFAULT_EMBEDDING_MODEL: str
-    DEFAULT_EMBEDDING_DIM: int
     DEFAULT_TTS_MODEL: str
 
     # --- Database (Postgres) ---

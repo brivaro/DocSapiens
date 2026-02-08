@@ -1,6 +1,6 @@
 import logging
 import hashlib
-from typing import List, Optional
+from typing import List
 from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
@@ -99,10 +99,11 @@ class DocumentService:
             if not config: return
             
             target_dim = config.embedding_dimension
+            target_task_type = config.embedding_task_type
+            
             qdrant.ensure_collection(target_dim)
             
             all_docs = self.crud.list_documents(db)
-            # IDs que YA están en esta dimensión
             qdrant_ids = qdrant.get_stored_document_ids(target_dim)
             
             missing_docs = [d for d in all_docs if str(d.id) not in qdrant_ids]
@@ -111,17 +112,17 @@ class DocumentService:
                 logging.info(f"[SYNC] Colección {target_dim} sincronizada.")
                 return
 
-            logging.info(f"[SYNC] Importando {len(missing_docs)} documentos faltantes a dim={target_dim}...")
+            logging.info(f"[SYNC] Importando {len(missing_docs)} documentos a dim={target_dim} ({target_task_type})...")
             
             for doc in missing_docs:
-                # Procesamos secuencialmente en el hilo de background
-                self._process_document_task(str(doc.id), sync_dimension=target_dim)
+                # Pasamos también el task_type al proceso
+                self._process_document_task(str(doc.id), sync_dimension=target_dim, sync_task_type=target_task_type)
 
     # --- TAREA DE PROCESAMIENTO (CORE) ---
-    def _process_document_task(self, doc_id: str, sync_dimension: int = None) -> None:
+    def _process_document_task(self, doc_id: str, sync_dimension: int = None, sync_task_type: str = None) -> None:
         """
         Tarea unificada. Lee la configuración del doc desde la BD,
-        extrae texto (o usa caché), hace split, embed y upsert.
+        extrae texto, hace split, embed (con TASK TYPE) y upsert.
         """
         with self.db_session() as db:
             try:
@@ -131,37 +132,39 @@ class DocumentService:
 
                 if sync_dimension:
                     dimension = sync_dimension
+                    # Si venimos de un sync, usamos el task type pasado o el default
+                    task_type = sync_task_type or "RETRIEVAL_DOCUMENT" 
                 else:
                     config = self.crud.get_active_rag_config(db)
                     dimension = config.embedding_dimension if config else 768
+                    task_type = config.embedding_task_type if config else "RETRIEVAL_DOCUMENT"
                 
-                model_name = "gemini-embedding-001" # O leer de config
+                model_name = "gemini-embedding-001" 
                 qdrant.ensure_collection(dimension)
 
                 self.crud.update_document_field(db, doc_id, "status", "processing")
                 
-                # 2. Texto
+                # 2. Texto (Extracción o Caché)
                 text = db_doc.text_content
                 if not text:
                     logging.info(f"[TASK] Extrayendo texto nuevo para {db_doc.filename}...")
                     text = _extract_text_from_content(db_doc.content, db_doc.content_type, db_doc.filename)
                     if text and "Unsupported" not in text:
                         self.crud.update_document_field(db, doc_id, "text_content", text)
-                        db.commit() # Guardar cache
-                        db.refresh(db_doc) # Refrescar objeto local
+                        db.commit()
+                        db.refresh(db_doc)
                 
                 if not text or "Unsupported" in text or "Error" in text:
-                    raise ValueError(f"No se pudo extraer texto válido: {text[:50]}...")
+                    raise ValueError(f"No se pudo extraer texto válido.")
 
-                # 3. Preparar objeto temporal para el splitter (usando configuración de la BD)
-                # Necesitamos pasarle un objeto que tenga los atributos que espera splitter
+                # 3. Preparar Splitter
                 class DocParams:
                     split_mode = db_doc.split_mode
                     split_by = db_doc.split_by
                     chunk_size = db_doc.chunk_size
                     overlap = db_doc.overlap
                     content_type = db_doc.content_type
-                    content = db_doc.content # Raw bytes necesario para PDF/Excel pages splitter
+                    content = db_doc.content
                     filename = db_doc.filename
 
                 # 4. Split
@@ -171,17 +174,18 @@ class DocumentService:
 
                 texts_to_embed = [c.text for c in chunks]
                 
-                # 5. Embedding
-                logging.info(f"[TASK] Generando {len(texts_to_embed)} embeddings (dim={dimension})...")
-                vectors = google_service.generate_embeddings(texts_to_embed, model_name, dimension)
+                # 5. Embedding (CON TASK TYPE Y TÍTULO)
+                logging.info(f"[TASK] Embeddings: {len(texts_to_embed)} items | Dim: {dimension} | Type: {task_type}")
+                
+                vectors = google_service.generate_embeddings(
+                    texts=texts_to_embed, 
+                    model=model_name, 
+                    dimension=dimension,
+                    task_type=task_type,
+                    doc_title=db_doc.filename
+                )
 
-                # 6. Upsert (Pasamos parámetros para el payload de Qdrant)
-                # Creamos un objeto dummy para generate_vector_objects que espera tags y filename
-                class DocMetadata:
-                    filename = db_doc.filename
-                    tags = db_doc.tags
-                    content_type = db_doc.content_type
-
+                # 6. Upsert
                 vector_objs = qdrant.generate_vector_objects(vectors, chunks, str(db_doc.id), db_doc.filename, db_doc.tags)
                 qdrant.upsert_vectors(vector_objs, dimension)
 
@@ -194,11 +198,10 @@ class DocumentService:
 
             except Exception as e:
                 logging.error(f"[TASK ERROR] Doc {doc_id}: {e}", exc_info=True)
-                # Re-obtener doc por si la sesión se cerró o expiró
-                db_doc = self.crud.get_document_by_id(db, doc_id)
+                db_doc = self.crud.get_document_by_id(db, doc_id) # Refresh session
                 if db_doc:
                     db_doc.status = "failed"
                     db_doc.error_message = str(e)
-                    db.commit()
+                    db.commit()    
 
 document_service = DocumentService()
