@@ -1,8 +1,11 @@
 export interface Chunk {
-  document_id: string;
   chunk_id: number;
+  document_id: string;
   text: string;
   score: number;
+  chunk_tags?: string[];
+  start?: number;
+  end?: number;
 }
 
 export interface Message {
@@ -10,6 +13,8 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   chunks?: Chunk[];
+  isStreaming?: boolean;
+  error?: boolean;
 }
 
 export interface ChatRequestParams {

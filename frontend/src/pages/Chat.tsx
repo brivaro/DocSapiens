@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { Chunk, ChatRequestParams, Message, ChatHistoryItem } from '../types/chat';
-import { useChat } from '../hooks/useChat';
-import { useTextToSpeech } from '../hooks/useTextToSpeech';
-import ChatFiltersPanel from  '../components/chat/ChatFiltersPanel';
-import ChatSettingsPanel, { type Settings } from '../components/chat/ChatSettingsPanel';
+import { useChatStream } from '../hooks/useChatStream';
+import { useRagSettings } from '../context/RagSettingsContext';
+import { ChatBubble } from '../components/chat/ChatBubble';
+import { ChatInput } from '../components/chat/ChatInput';
 import SourceChunksModal from '../components/chat/SourceChunksModal';
+import ChatSettingsPanel, { type Settings } from '../components/chat/ChatSettingsPanel';
+import ChatFiltersPanel from '../components/chat/ChatFiltersPanel';
 import WelcomePlaceholder from '../components/chat/WelcomePlaceholder';
-import { PaperPlaneRight, SpeakerSimpleHigh, Copy, CircleNotch, Books } from 'phosphor-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { Robot, Sliders, X, CircleNotch } from 'phosphor-react';
+import { Chunk, ChatRequestParams } from '../types/chat';
+import { clsx } from 'clsx';
 
 interface ChatFilters {
     documentIds: string[];

@@ -13,6 +13,25 @@ from app.processing.splitter import _split_text
 from app.vectorstore import qdrant
 from app.services.google_service import google_service
 
+# Helper function para mapear la intención de búsqueda al tipo de ingesta correcto
+def get_ingestion_task_type(configured_task_type: str) -> str:
+    """
+    Determina cómo debe 'vestirse' el documento basándose en cómo se va a buscar.
+    Basado en la documentación de Google Gemini Embeddings.
+    """
+    # Casos Asimétricos (La pregunta es X, el documento debe ser RETRIEVAL_DOCUMENT)
+    if configured_task_type in [
+        "RETRIEVAL_QUERY", 
+        "QUESTION_ANSWERING", 
+        "FACT_VERIFICATION", 
+        "CODE_RETRIEVAL_QUERY"
+    ]:
+        return "RETRIEVAL_DOCUMENT"
+    
+    # Casos Simétricos (El documento usa el mismo tipo que la query)
+    # SEMANTIC_SIMILARITY, CLASSIFICATION, CLUSTERING
+    return configured_task_type
+
 class DocumentService:
     # --- PROPIEDADES ---
     @property
@@ -126,26 +145,32 @@ class DocumentService:
         """
         with self.db_session() as db:
             try:
-                # 1. Configuración
+                # 1. Obtener documento
                 db_doc = self.crud.get_document_by_id(db, doc_id)
                 if not db_doc: return
 
+                # 2. Determinar Configuración
                 if sync_dimension:
                     dimension = sync_dimension
-                    # Si venimos de un sync, usamos el task type pasado o el default
-                    task_type = sync_task_type or "RETRIEVAL_DOCUMENT" 
+                    # Si venimos de un sync manual, usamos el task type pasado
+                    selected_task_type = sync_task_type or "RETRIEVAL_QUERY"
                 else:
                     config = self.crud.get_active_rag_config(db)
                     dimension = config.embedding_dimension if config else 768
-                    task_type = config.embedding_task_type if config else "RETRIEVAL_DOCUMENT"
+                    selected_task_type = config.embedding_task_type if config else "RETRIEVAL_QUERY"
                 
+                # Convertimos la "Intención de Búsqueda" en "Tipo de Ingesta"
+                ingestion_task_type = get_ingestion_task_type(selected_task_type)
+                
+                logging.info(f"[TASK] Configurado: {selected_task_type} -> Ingestando como: {ingestion_task_type}")
+
                 model_name = "gemini-embedding-001" 
                 qdrant.ensure_collection(dimension)
 
                 self.crud.update_document_field(db, doc_id, "status", "processing")
                 
                 # 2. Texto (Extracción o Caché)
-                text = db_doc.text_content
+                text = db_doc.text_content or _extract_text_from_content(db_doc.content, db_doc.content_type, db_doc.filename)
                 if not text:
                     logging.info(f"[TASK] Extrayendo texto nuevo para {db_doc.filename}...")
                     text = _extract_text_from_content(db_doc.content, db_doc.content_type, db_doc.filename)
@@ -181,7 +206,7 @@ class DocumentService:
                     texts=texts_to_embed, 
                     model=model_name, 
                     dimension=dimension,
-                    task_type=task_type,
+                    task_type=ingestion_task_type,
                     doc_title=db_doc.filename
                 )
 

@@ -1,15 +1,33 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import App from './App';
+import './index.css';
 
-const queryClient = new QueryClient()
+// Context Providers
+import { NotificationsProvider } from './context/NotificationsContext';
+import { RagSettingsProvider } from './context/RagSettingsContext';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <NotificationsProvider>
+          <RagSettingsProvider>
+            <App />
+          </RagSettingsProvider>
+        </NotificationsProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
   </React.StrictMode>,
-)
+);

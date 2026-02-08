@@ -14,7 +14,7 @@ COPY pnpm-lock.yaml ./
 # Instalar las dependencias usando pnpm
 # --frozen-lockfile asegura que se use exactamente lo definido en el lockfile.
 # Para desarrollo local usar --no-frozen-lockfile, pero no en CI, rompe reproducibilidad.
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Copiar el resto del código fuente de la aplicación
 COPY . ./

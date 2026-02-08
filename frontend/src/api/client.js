@@ -1,5 +1,31 @@
-import axios from "axios";
+import axios from 'axios';
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+const apiClient = axios.create({
+    baseURL: API_BASE_URL,
+    withCredentials: true,
 });
+
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        let errorMessage = 'Ocurrió un error inesperado.';
+
+        if (error.response && error.response.data && error.response.data.detail) {
+            errorMessage = error.response.data.detail;
+        }
+        else if (error.request) {
+            errorMessage = 'No se pudo conectar con el servidor. ¿Está funcionando?';
+        } 
+        else {
+            errorMessage = error.message;
+        }
+
+        //toast.error(errorMessage); ya lo manejamos en el componente correspondiente
+
+        return Promise.reject(error);
+    }
+);
+
+export default apiClient;

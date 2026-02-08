@@ -1,75 +1,234 @@
-import React from "react";
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { 
+    FileText, ChatCircleDots, HardDrives, Database,
+    Lightning, Clock, CaretRight, Plus, CloudArrowUp 
+} from 'phosphor-react';
+import { useDocuments } from '../hooks/useDocuments';
+import { useChatHistory } from '../hooks/useChatHistory';
+import { useRagSettings } from '../context/RagSettingsContext';
+import SkeletonLoader from '../components/common/SkeletonLoader';
+import { clsx } from 'clsx';
 
-const Dashboard: React.FC = () => (
-  <div>
-    <div className="flex flex-wrap justify-between gap-3 p-4">
-      <p className="text-[#0d141c] tracking-light text-[32px] font-bold leading-tight min-w-72">Dashboard</p>
-    </div>
-    <div className="flex flex-wrap gap-4 p-4">
-      <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-[#cedbe8]">
-        <p className="text-[#0d141c] text-base font-medium leading-normal">Documents Uploaded</p>
-        <p className="text-[#0d141c] tracking-light text-2xl font-bold leading-tight">125</p>
-      </div>
-      <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-[#cedbe8]">
-        <p className="text-[#0d141c] text-base font-medium leading-normal">Processing Status</p>
-        <p className="text-[#0d141c] tracking-light text-2xl font-bold leading-tight">Completed</p>
-      </div>
-      <div className="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-[#cedbe8]">
-        <p className="text-[#0d141c] text-base font-medium leading-normal">Recent Queries</p>
-        <p className="text-[#0d141c] tracking-light text-2xl font-bold leading-tight">50</p>
-      </div>
-    </div>
-    <h2 className="text-[#0d141c] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">Recent Activities</h2>
-    <div className="grid grid-cols-[40px_1fr] gap-x-2 px-4">
-      <div className="flex flex-col items-center gap-1 pt-3">
-        <div className="text-[#0d141c]">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
-            <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z" />
-          </svg>
-        </div>
-        <div className="w-[1.5px] bg-[#cedbe8] h-2 grow"></div>
-      </div>
-      <div className="flex flex-1 flex-col py-3">
-        <p className="text-[#0d141c] text-base font-medium leading-normal">Uploaded 'Employee Handbook'</p>
-        <p className="text-[#49739c] text-base font-normal leading-normal">2 hours ago</p>
-      </div>
-      <div className="flex flex-col items-center gap-1">
-        <div className="w-[1.5px] bg-[#cedbe8] h-2"></div>
-        <div className="text-[#0d141c]">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
-            <path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128ZM84,116a12,12,0,1,0,12,12A12,12,0,0,0,84,116Zm88,0a12,12,0,1,0,12,12A12,12,0,0,0,172,116Zm60,12A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Zm-16,0A88,88,0,1,0,51.81,172.06a8,8,0,0,1,.66,6.54L40,216,77.4,203.53a7.85,7.85,0,0,1,2.53-.42,8,8,0,0,1,4,1.08A88,88,0,0,0,216,128Z" />
-          </svg>
-        </div>
-        <div className="w-[1.5px] bg-[#cedbe8] h-2 grow"></div>
-      </div>
-      <div className="flex flex-1 flex-col py-3">
-        <p className="text-[#0d141c] text-base font-medium leading-normal">Chat with AI about 'Benefits'</p>
-        <p className="text-[#49739c] text-base font-normal leading-normal">4 hours ago</p>
-      </div>
-      <div className="flex flex-col items-center gap-1 pb-3">
-        <div className="w-[1.5px] bg-[#cedbe8] h-2"></div>
-        <div className="text-[#0d141c]">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
-            <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z" />
-          </svg>
-        </div>
-      </div>
-      <div className="flex flex-1 flex-col py-3">
-        <p className="text-[#0d141c] text-base font-medium leading-normal">Uploaded 'Q3 Financial Report'</p>
-        <p className="text-[#49739c] text-base font-normal leading-normal">1 day ago</p>
-      </div>
-    </div>
-    <div className="flex justify-stretch">
-      <div className="flex flex-1 gap-3 flex-wrap px-4 py-3 justify-start">
-        <button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 px-4 bg-[#0c7ff2] text-slate-50 text-sm font-bold leading-normal tracking-[0.015em]">
-          <span className="truncate">Upload Document</span>
-        </button>
-        <button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 px-4 bg-[#e7edf4] text-[#0d141c] text-sm font-bold leading-normal tracking-[0.015em]">
-          <span className="truncate">Start Chat</span>
-        </button>
-      </div>
-    </div>
-  </div>
-);
+export default function Dashboard() {
+    const { documents, isLoading: isLoadingDocs } = useDocuments();
+    const { data: chatHistory, isLoading: isLoadingChat } = useChatHistory();
+    const { config } = useRagSettings();
 
-export default Dashboard; 
+    // Cálculo de estadísticas en el cliente (para no sobrecargar endpoints específicos)
+    const stats = useMemo(() => {
+        if (!documents) return null;
+        
+        const totalDocs = documents.length;
+        // Sumamos chunks. Asumimos que el backend devuelve chunk_count en ApiDocument
+        // (Si no lo tienes en la interfaz ApiDocument, añade 'chunk_count: number' en useDocuments.ts)
+        const totalChunks = documents.reduce((acc, doc) => acc + (doc.chunk_count || 0), 0); 
+        const processing = documents.filter(d => d.status === 'processing' || d.status === 'pending').length;
+        
+        return { totalDocs, totalChunks, processing };
+    }, [documents]);
+
+    const recentActivity = useMemo(() => {
+        const activity: any[] = [];
+        
+        // Docs recientes
+        if (documents) {
+            documents.slice(0, 3).forEach(doc => {
+                activity.push({
+                    id: doc.id,
+                    type: 'document',
+                    title: doc.filename,
+                    date: doc.uploaded_at,
+                    status: doc.status
+                });
+            });
+        }
+        
+        // Chats recientes
+        if (chatHistory?.history) {
+            chatHistory.history.slice(0, 3).forEach(chat => {
+                activity.push({
+                    id: chat.id,
+                    type: 'chat',
+                    title: chat.questions[0], // Primera pregunta como título
+                    date: null, // El backend actual no devuelve fecha en history, ojo aquí.
+                });
+            });
+        }
+
+        // Ordenar si tuviéramos fechas unificadas, por ahora mezclamos simple
+        return activity;
+    }, [documents, chatHistory]);
+
+    const isLoading = isLoadingDocs || isLoadingChat;
+
+    return (
+        <div className="space-y-8 animate-fade-in pb-10">
+            {/* Welcome Section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-4xl font-bold text-white bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+                        Hola, Admin
+                    </h1>
+                    <p className="text-gray-400 mt-2 text-lg">
+                        Tu base de conocimiento está {(stats?.processing || 0) > 0 ? 'procesando información...' : 'lista para consultas.'}
+                    </p>
+                </div>
+                <div className="flex gap-3">
+                    <Link 
+                        to="/documents" 
+                        className="px-5 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-semibold transition-colors flex items-center gap-2 border border-gray-700"
+                    >
+                        <CloudArrowUp size={20} /> Subir
+                    </Link>
+                    <Link 
+                        to="/chat" 
+                        className="px-5 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                    >
+                        <ChatCircleDots size={20} weight="fill" /> Nuevo Chat
+                    </Link>
+                </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard 
+                    title="Documentos" 
+                    value={stats?.totalDocs} 
+                    icon={FileText} 
+                    color="text-blue-400" 
+                    bg="bg-blue-500/10" 
+                    loading={isLoading}
+                />
+                <StatCard 
+                    title="Fragmentos (Chunks)" 
+                    value={stats?.totalChunks} 
+                    icon={Database} 
+                    color="text-purple-400" 
+                    bg="bg-purple-500/10" 
+                    loading={isLoading}
+                />
+                <StatCard 
+                    title="Dimensión Activa" 
+                    value={config?.embedding_dimension || '-'} 
+                    icon={HardDrives} 
+                    color="text-green-400" 
+                    bg="bg-green-500/10" 
+                    loading={!config}
+                    suffix="dim"
+                />
+                <StatCard 
+                    title="Cola de Proceso" 
+                    value={stats?.processing} 
+                    icon={Lightning} 
+                    color="text-yellow-400" 
+                    bg="bg-yellow-500/10" 
+                    loading={isLoading}
+                    urgent={(stats?.processing || 0) > 0} 
+                />
+            </div>
+
+            {/* Main Content Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Recent Activity */}
+                <div className="lg:col-span-2 bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-xl">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <Clock size={24} className="text-gray-400" />
+                            Actividad Reciente
+                        </h2>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        {isLoading ? (
+                            [1, 2, 3].map(i => <SkeletonLoader key={i} className="h-16 w-full rounded-xl" />)
+                        ) : recentActivity.length === 0 ? (
+                            <div className="text-center py-10 text-gray-500">No hay actividad reciente.</div>
+                        ) : (
+                            recentActivity.map((item, idx) => (
+                                <div key={`${item.id}-${idx}`} className="flex items-center gap-4 p-4 bg-gray-700/30 rounded-xl border border-gray-700/50 hover:border-gray-600 transition-colors group">
+                                    <div className={clsx(
+                                        "w-10 h-10 rounded-full flex items-center justify-center shadow-lg",
+                                        item.type === 'document' ? 'bg-blue-900/50 text-blue-400' : 'bg-purple-900/50 text-purple-400'
+                                    )}>
+                                        {item.type === 'document' ? <FileText size={20} weight="fill"/> : <ChatCircleDots size={20} weight="fill"/>}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-white font-medium truncate group-hover:text-blue-300 transition-colors">
+                                            {item.title || "Sin título"}
+                                        </h4>
+                                        <p className="text-xs text-gray-500">
+                                            {item.type === 'document' ? 'Documento subido' : 'Conversación iniciada'} 
+                                            {item.date && ` • ${new Date(item.date).toLocaleDateString()}`}
+                                        </p>
+                                    </div>
+                                    {item.status && (
+                                        <span className={clsx(
+                                            "text-xs px-2 py-1 rounded-full font-bold uppercase",
+                                            item.status === 'processed' ? "bg-green-900/30 text-green-400" : 
+                                            item.status === 'processing' ? "bg-yellow-900/30 text-yellow-400 animate-pulse" : 
+                                            "bg-gray-700 text-gray-400"
+                                        )}>
+                                            {item.status}
+                                        </span>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Quick Actions / Tips */}
+                <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 border border-blue-500/20 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold text-white mb-2">💡 DocSapiens Tips</h3>
+                        <p className="text-sm text-gray-400 leading-relaxed mb-6">
+                            Para mejorar la calidad de las respuestas, asegúrate de etiquetar correctamente tus documentos. 
+                            El modo <strong>{config?.embedding_task_type || 'RETRIEVAL_QUERY'}</strong> está activo actualmente.
+                        </p>
+                    </div>
+                    
+                    <div className="space-y-3">
+                        <Link to="/settings" className="block w-full p-3 bg-gray-800 hover:bg-gray-700 rounded-xl border border-gray-700 text-sm text-gray-300 flex justify-between items-center transition-all hover:translate-x-1">
+                            Cambiar Modo de Tarea <CaretRight />
+                        </Link>
+                        <Link to="/documents" className="block w-full p-3 bg-gray-800 hover:bg-gray-700 rounded-xl border border-gray-700 text-sm text-gray-300 flex justify-between items-center transition-all hover:translate-x-1">
+                            Gestionar Etiquetas <CaretRight />
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Mini componente interno para las cards
+function StatCard({ title, value, icon: Icon, color, bg, loading, suffix, urgent }: any) {
+    return (
+        <div className={clsx(
+            "bg-gray-800 p-6 rounded-2xl border transition-all duration-300 shadow-lg group",
+            urgent ? "border-yellow-500/50 shadow-yellow-500/10" : "border-gray-700 hover:border-gray-600"
+        )}>
+            <div className="flex justify-between items-start mb-4">
+                <div className={clsx("p-3 rounded-xl", bg)}>
+                    <Icon size={24} weight="duotone" className={color} />
+                </div>
+                {urgent && <span className="flex h-3 w-3 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+                </span>}
+            </div>
+            <div>
+                <p className="text-gray-400 text-sm font-medium">{title}</p>
+                {loading ? (
+                    <SkeletonLoader className="h-8 w-24 mt-1" />
+                ) : (
+                    <h3 className="text-3xl font-bold text-white mt-1">
+                        {value} <span className="text-lg text-gray-500 font-normal">{suffix}</span>
+                    </h3>
+                )}
+            </div>
+        </div>
+    );
+}

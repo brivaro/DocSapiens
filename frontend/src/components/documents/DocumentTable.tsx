@@ -1,105 +1,113 @@
 import React from 'react';
-import { Trash } from 'phosphor-react';
-import StatusBadge from './StatusBadge';
-import TagBadge from './TagBadge';
-
-// Interfaces sin cambios
-interface Document {
-  id: string;
-  filename: string;
-  type: string;
-  status: string;
-  date: string;
-  tags: string[];
-  originalFilename: string;
-}
+import { Trash, ArrowsClockwise, FileText, DownloadSimple } from 'phosphor-react';
+import { ApiDocument } from '../../hooks/useDocuments';
+import { clsx } from 'clsx';
+import { API_BASE_URL } from '../../api/client';
 
 interface Props {
-  documents: Document[];
-  onRowClick: (docId: string) => void;
-  selectedDocId: string | null;
-  onDeleteRequest: (doc: { id: string; filename: string }) => void;
+  documents: ApiDocument[];
+  onReIndex: (doc: ApiDocument) => void;
+  onDelete: (id: string) => void;
 }
 
-// Componente para una fila, que se comporta como <tr>
-const DocumentRow: React.FC<{ doc: Document; isSelected: boolean; onRowClick: Props['onRowClick']; onDeleteRequest: Props['onDeleteRequest'] }> = ({ doc, isSelected, onRowClick, onDeleteRequest }) => (
-  // Fila: se comporta como un <tr>
-  <div
-    onClick={() => onRowClick(doc.id)}
-    className={`table-row border-b border-gray-200 cursor-pointer transition-colors last:border-b-0 ${isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
-  >
-    {/* Celda Nombre: se comporta como <td>. El 'overflow-hidden' es la garantía final. */}
-    <div className="table-cell px-6 py-4 align-middle">
-        <div className="overflow-hidden">
-            <p className="text-sm font-medium text-gray-900 break-all" title={doc.originalFilename}>
-              {doc.filename}
-            </p>
-        </div>
-    </div>
-
-    {/* Celdas restantes */}
-    <div className="table-cell px-6 py-4 align-middle">
-      <StatusBadge status={doc.status} />
-    </div>
-    <div className="table-cell px-6 py-4 align-middle">
-      <div className="flex flex-wrap gap-1">
-        {doc.tags.map(tag => <TagBadge key={tag} tag={tag} />)}
-      </div>
-    </div>
-    <div className="table-cell px-6 py-4 align-middle text-sm text-gray-500 uppercase">{doc.type}</div>
-    <div className="table-cell px-6 py-4 align-middle text-sm text-gray-500">{doc.date}</div>
-    <div className="table-cell px-6 py-4 align-middle text-center">
-      <button
-        onClick={(e) => { e.stopPropagation(); onDeleteRequest({ id: doc.id, filename: doc.originalFilename }); }}
-        title={`Delete ${doc.originalFilename}`}
-        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-100 rounded-full transition-colors"
-      >
-        <Trash size={18} />
-      </button>
-    </div>
-  </div>
-);
-
-// Componente principal de la tabla
-const DocumentTable: React.FC<Props> = ({ documents, onRowClick, selectedDocId, onDeleteRequest }) => {
+export default function DocumentTable({ documents, onReIndex, onDelete }: Props) {
   if (documents.length === 0) {
-    return <p className="text-center text-gray-500 py-10">No documents found.</p>;
-  }
-  
-  return (
-    // Contenedor principal: se comporta como <table style="table-layout: fixed">
-    <div className="table w-full table-fixed">
-      {/* Cabecera: se comporta como <thead> */}
-      <div className="table-header-group bg-gray-50 sticky top-0 z-10">
-        {/* Fila de cabecera: se comporta como <tr> */}
-        <div className="table-row">
-          {/* 
-            CAMBIO CLAVE: Celdas de cabecera con anchos de PORCENTAJE explícitos e inquebrantables.
-            Usamos 'style' para que la propiedad sea directa y no pueda ser sobreescrita por otra clase.
-          */}
-          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '28%' }}>Name</div>
-          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '17%' }}>Status</div>
-          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '19%' }}>Tags</div>
-          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '10%' }}>Type</div>
-          <div className="table-cell px-6 h-12 align-middle text-xs font-bold text-gray-500 uppercase" style={{ width: '13%' }}>Date</div>
-          <div className="table-cell px-6 h-12 align-middle text-center text-xs font-bold text-gray-500 uppercase" style={{ width: '13%' }}>Actions</div>
+    return (
+        <div className="flex flex-col items-center justify-center p-12 text-gray-500 border-2 border-dashed border-gray-700 rounded-2xl bg-gray-800/30">
+            <FileText size={48} className="mb-3 opacity-50" />
+            <p className="text-lg font-medium">No hay documentos indexados</p>
+            <p className="text-sm">Sube uno nuevo para empezar.</p>
         </div>
-      </div>
-      
-      {/* Cuerpo de la tabla: se comporta como <tbody> */}
-      <div className="table-row-group bg-white">
-        {documents.map((doc) => (
-           <DocumentRow
-             key={doc.id}
-             doc={doc}
-             isSelected={selectedDocId === doc.id}
-             onRowClick={onRowClick}
-             onDeleteRequest={onDeleteRequest}
-           />
-        ))}
-      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden bg-gray-800 border border-gray-700 rounded-xl shadow-lg">
+      <table className="w-full text-left text-sm text-gray-400">
+        <thead className="bg-gray-900 text-gray-200 uppercase font-bold text-xs">
+          <tr>
+            <th scope="col" className="px-6 py-4">Archivo</th>
+            <th scope="col" className="px-6 py-4">Chunks</th>
+            <th scope="col" className="px-6 py-4">Estado</th>
+            <th scope="col" className="px-6 py-4">Etiquetas</th>
+            <th scope="col" className="px-6 py-4 text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-700">
+          {documents.map((doc) => (
+            <tr key={doc.id} className="hover:bg-gray-700/50 transition-colors group">
+              <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
+                    <FileText size={20} weight="fill" />
+                </div>
+                <div className="truncate max-w-[200px]" title={doc.filename}>
+                    {doc.filename}
+                    <div className="text-xs text-gray-500 font-normal">{new Date(doc.uploaded_at || '').toLocaleDateString()}</div>
+                </div>
+              </td>
+              <td className="px-6 py-4">
+                <span className="font-mono bg-gray-700 px-2 py-1 rounded text-gray-300">
+                    {doc.chunk_count || 0}
+                </span>
+              </td>
+              <td className="px-6 py-4">
+                 <StatusBadge status={doc.status || 'unknown'} />
+              </td>
+              <td className="px-6 py-4">
+                <div className="flex flex-wrap gap-1">
+                    {doc.tags.map(tag => (
+                        <span key={tag} className="px-2 py-0.5 rounded-full text-xs bg-gray-700 text-gray-300 border border-gray-600">
+                            {tag}
+                        </span>
+                    ))}
+                </div>
+              </td>
+              <td className="px-6 py-4 text-right">
+                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a 
+                        href={`${API_BASE_URL}/v1/documents/${doc.id}/download`} 
+                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg transition-colors"
+                        title="Descargar Original"
+                        download
+                    >
+                        <DownloadSimple size={18} />
+                    </a>
+                    <button 
+                        onClick={() => onReIndex(doc)}
+                        className="p-2 text-blue-400 hover:text-white hover:bg-blue-600 rounded-lg transition-colors"
+                        title="Re-Indexar / Cambiar Chunking"
+                    >
+                        <ArrowsClockwise size={18} />
+                    </button>
+                    <button 
+                        onClick={() => onDelete(doc.id)}
+                        className="p-2 text-red-400 hover:text-white hover:bg-red-600 rounded-lg transition-colors"
+                        title="Eliminar"
+                    >
+                        <Trash size={18} />
+                    </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
-};
+}
 
-export default DocumentTable;
+const StatusBadge = ({ status }: { status: string }) => {
+    const styles = {
+        processed: "bg-green-500/10 text-green-400 border-green-500/20",
+        processing: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 animate-pulse",
+        pending: "bg-gray-500/10 text-gray-400 border-gray-500/20",
+        failed: "bg-red-500/10 text-red-400 border-red-500/20"
+    };
+    const style = styles[status as keyof typeof styles] || styles.pending;
+    
+    return (
+        <span className={clsx("px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wider", style)}>
+            {status}
+        </span>
+    );
+};

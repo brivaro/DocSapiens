@@ -1,10 +1,10 @@
-import logging
 from typing import List, Optional
 from app.models.chat import Chunk
 from app.services.google_service import google_service
 from app.db.session import SessionLocal
 from app.db import crud
 from app.vectorstore import qdrant
+import logging
 
 def retrieve_chunks(
     query: str, 
@@ -13,31 +13,23 @@ def retrieve_chunks(
     tags: Optional[List[str]] = None
 ) -> List[Chunk]:
     
-    # 1. Obtener configuración activa
     with SessionLocal() as db:
         config = crud.get_active_rag_config(db)
         if not config:
             dimension = 768
             model_name = "gemini-embedding-001"
-            ingestion_task_type = "RETRIEVAL_DOCUMENT"
+            # Default fallback
+            query_task_type = "RETRIEVAL_QUERY"
         else:
             dimension = config.embedding_dimension
             model_name = config.embedding_model
-            ingestion_task_type = config.embedding_task_type
+            # Usamos directamente lo que el usuario configuró como su intención
+            query_task_type = config.embedding_task_type
 
-    # 2. Determinar el task_type para la QUERY
-    # Regla: Si indexamos como DOCUMENT, buscamos como QUERY. 
-    # Si indexamos como SIMILARITY, buscamos como SIMILARITY.
-    query_task_type = "RETRIEVAL_QUERY" 
-    if ingestion_task_type == "SEMANTIC_SIMILARITY":
-        query_task_type = "SEMANTIC_SIMILARITY"
-    elif ingestion_task_type == "CLASSIFICATION":
-        query_task_type = "CLASSIFICATION"
-    # Por defecto RETRIEVAL_QUERY funciona bien contra RETRIEVAL_DOCUMENT
+    logging.info(f"[RETRIEVER] Buscando con tarea: {query_task_type} (Dim: {dimension})")
 
-    logging.info(f"[RETRIEVER] Embedding query con task_type: {query_task_type}")
-
-    # 3. Generar embedding de la pregunta
+    # Generar embedding de la pregunta usando el tipo específico
+    # (ej: QUESTION_ANSWERING, CODE_RETRIEVAL_QUERY, FACT_VERIFICATION)
     embeddings = google_service.generate_embeddings(
         texts=[query], 
         model=model_name, 
@@ -50,7 +42,6 @@ def retrieve_chunks(
     
     query_vector = embeddings[0]
 
-    # 3. Buscar en Qdrant en la colección específica de esa dimensión
     hits = qdrant.search_vectors(
         query_vector=query_vector,
         dimension=dimension,
@@ -59,7 +50,6 @@ def retrieve_chunks(
         tags=tags
     )
 
-    # 4. Mapear resultados
     return [
         Chunk(
             chunk_id=hit.payload.get("chunk_id"),

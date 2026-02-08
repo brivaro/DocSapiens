@@ -17,11 +17,12 @@ TaskTypeEnum = Literal[
 ]
 
 class RagConfigBase(BaseModel):
-    embedding_model: str = Field("gemini-embedding-001", description="Modelo de Google para embeddings")
-    embedding_dimension: int = Field(768, description="Dimensión del vector (MRL)")
+    embedding_model: str = Field("gemini-embedding-001", description="Modelo de Google")
+    embedding_dimension: int = Field(768, description="Dimensión del vector")
+    
     embedding_task_type: TaskTypeEnum = Field(
-        "RETRIEVAL_DOCUMENT", 
-        description="Tipo de tarea para optimizar el embedding (normalmente RETRIEVAL_DOCUMENT para RAG)"
+        "RETRIEVAL_QUERY", 
+        description="El tipo de tarea principal para la que se usará el sistema."
     )
 
     @field_validator('embedding_dimension')
@@ -30,12 +31,9 @@ class RagConfigBase(BaseModel):
             raise ValueError(f"Dimensión no soportada. Opciones válidas: {SUPPORTED_DIMENSIONS}")
         return v
 
-class RagConfigCreate(RagConfigBase):
-    pass
-
 class RagConfigUpdate(BaseModel):
     embedding_dimension: int
-    embedding_task_type: TaskTypeEnum = "RETRIEVAL_DOCUMENT"
+    embedding_task_type: TaskTypeEnum
 
     @field_validator('embedding_dimension')
     def validate_dimension(cls, v):
