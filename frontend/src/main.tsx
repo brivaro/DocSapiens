@@ -7,7 +7,6 @@ import './index.css';
 
 // Context Providers
 import { NotificationsProvider } from './context/NotificationsContext';
-import { RagSettingsProvider } from './context/RagSettingsContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,9 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <NotificationsProvider>
-          <RagSettingsProvider>
             <App />
-          </RagSettingsProvider>
         </NotificationsProvider>
       </QueryClientProvider>
     </BrowserRouter>

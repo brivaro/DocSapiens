@@ -1,16 +1,18 @@
 import React, { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDropzone } from 'react-dropzone';
-import { File, X, CloudArrowUp, Gear, Trash, CheckCircle, CircleNotch, WarningCircle, TextT } from 'phosphor-react';
+import { File, X, CloudArrowUp, Gear, Trash, CheckCircle, CircleNotch, WarningCircle, TextT, Database } from 'phosphor-react';
 import apiClient from '../../api/client';
 import { clsx } from 'clsx';
 import { Portal } from '../common/Portal';
+import { useVectorStores } from '../../hooks/useVectorStores';
+import { VectorStore } from '../../types/vectorStore';
 
-// Interfaz actualizada
 interface FileWithConfig {
   id: string;
   file: File;
   filename: string;
+  vector_store_id: string;
   tags: string;
   split_mode: 'delimiter' | 'size' | 'pages' | 'whole';
   split_by: string;
@@ -23,9 +25,9 @@ interface FileWithConfig {
 const uploadDocumentApi = async (params: Omit<FileWithConfig, 'id' | 'file' | 'status' | 'error'> & { file: File }) => {
     const formData = new FormData();
     formData.append("file", params.file, params.filename);
+    formData.append("vector_store_id", params.vector_store_id);
     formData.append("split_mode", params.split_mode);
     
-    // IMPORTANTE: Enviar el split_by correctamente escapado si es necesario
     if (params.split_mode === 'delimiter') {
         formData.append("split_by", params.split_by.replace(/\\n/g, '\n'));
     }
@@ -34,18 +36,19 @@ const uploadDocumentApi = async (params: Omit<FileWithConfig, 'id' | 'file' | 's
         formData.append("overlap", params.overlap.toString());
     }
     formData.append("tags", params.tags);
+    
     const { data } = await apiClient.post("/api/v1/documents/upload/", formData);
     return data;
 };
 
-// Componente para un solo archivo
 const FileConfigItem: React.FC<{
   item: FileWithConfig;
+  vectorStores: VectorStore[] | undefined;
   onUpdate: (id: string, newConfig: Partial<FileWithConfig>) => void;
   onRemove: (id: string) => void;
   isUploading: boolean;
-}> = ({ item, onUpdate, onRemove, isUploading }) => {
-  const [showConfig, setShowConfig] = useState(true); // Abierto por defecto para que el usuario vea opciones
+}> = ({ item, vectorStores, onUpdate, onRemove, isUploading }) => {
+  const [showConfig, setShowConfig] = useState(true);
   
   return (
     <div className="p-3 bg-gray-700/30 border border-gray-600 rounded-lg transition-all">
@@ -65,13 +68,35 @@ const FileConfigItem: React.FC<{
       
       {showConfig && (
         <div className="mt-4 pt-4 border-t border-gray-600 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
-          {/* Fila 1 */}
+          
+          {/* SELECTOR DE COLECCIÓN (OBLIGATORIO) */}
+          <div className="md:col-span-2 bg-gray-800/50 p-3 rounded-lg border border-gray-600/50">
+            <label className="text-xs font-bold text-blue-300 block mb-1 flex items-center gap-1">
+               <Database weight="fill" /> Colección Destino *
+            </label>
+            <select 
+                value={item.vector_store_id} 
+                onChange={e => onUpdate(item.id, { vector_store_id: e.target.value })}
+                className={clsx(
+                    "w-full rounded px-2 py-2 text-sm outline-none border transition-all",
+                    !item.vector_store_id 
+                        ? "bg-red-900/20 border-red-500 text-white animate-pulse focus:animate-none" 
+                        : "bg-gray-900 border-gray-600 text-white focus:ring-1 focus:ring-blue-500"
+                )}
+            >
+                <option value="">-- Selecciona una Colección --</option>
+                {vectorStores?.map(vs => (
+                    <option key={vs.id} value={vs.id}>{vs.name} ({vs.embedding_dimension}d)</option>
+                ))}
+            </select>
+            {!item.vector_store_id && <p className="text-[10px] text-red-400 mt-1 font-medium">⚠️ Requerido: Elige dónde guardar este documento.</p>}
+          </div>
+
           <div className="md:col-span-2">
             <label className="text-xs font-semibold text-gray-400 block mb-1">Nombre del Archivo</label>
             <input type="text" value={item.filename} onChange={e => onUpdate(item.id, { filename: e.target.value })} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none" />
           </div>
 
-          {/* Fila 2: Modo y Opciones específicas */}
           <div>
             <label className="text-xs font-semibold text-gray-400 block mb-1">Modo de División</label>
             <select value={item.split_mode} onChange={e => onUpdate(item.id, { split_mode: e.target.value as FileWithConfig['split_mode'] })} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none">
@@ -82,7 +107,6 @@ const FileConfigItem: React.FC<{
             </select>
           </div>
 
-          {/* INPUT DE DELIMITADOR (Ahora visible y editable) */}
           {item.split_mode === 'delimiter' && (
             <div>
               <label className="text-xs font-semibold text-gray-400 block mb-1 flex items-center gap-1">
@@ -114,7 +138,6 @@ const FileConfigItem: React.FC<{
             </>
           )}
 
-          {/* Fila 3: Tags */}
           <div className="md:col-span-2">
             <label className="text-xs font-semibold text-gray-400 block mb-1">Etiquetas (separadas por comas)</label>
             <input type="text" value={item.tags} onChange={e => onUpdate(item.id, { tags: e.target.value })} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none" placeholder="urgente, finanzas, Q1..." />
@@ -129,15 +152,17 @@ const FileConfigItem: React.FC<{
 const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [files, setFiles] = useState<FileWithConfig[]>([]);
   const queryClient = useQueryClient();
+  const { vectorStores } = useVectorStores();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles: FileWithConfig[] = acceptedFiles.map(file => ({
       id: `${file.name}-${Date.now()}`,
       file,
       filename: file.name,
+      vector_store_id: '', // Inicialmente vacío, usuario debe elegir
       tags: '',
       split_mode: 'delimiter',
-      split_by: '\\n\\n', // Default visible para el usuario
+      split_by: '\\n\\n',
       chunk_size: 1000,
       overlap: 200,
       status: 'pending'
@@ -166,26 +191,44 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       }
   });
 
-  const handleUploadAll = () => {
-    files.filter(f => f.status === 'pending').forEach(fileConfig => {
-        uploadFile(fileConfig);
-    });
-    onClose();
+  const handleUploadAll = async () => {
+    // Validar que todos tengan vector_store_id
+    if (files.some(f => !f.vector_store_id)) {
+        alert("Por favor selecciona una colección de destino para todos los archivos.");
+        return;
+    }
+
+    // Procesar uno a uno (o Promise.all si prefieres paralelo)
+    for (const fileConfig of files) {
+        if (fileConfig.status !== 'pending') continue;
+        
+        updateFileConfig(fileConfig.id, { status: 'uploading' });
+        try {
+            await uploadFile(fileConfig);
+            updateFileConfig(fileConfig.id, { status: 'success' });
+        } catch (error: any) {
+            updateFileConfig(fileConfig.id, { 
+                status: 'error', 
+                error: error.response?.data?.detail || "Error subiendo archivo" 
+            });
+        }
+    }
+    
+    // Si todos ok, cerrar tras un breve delay o dejar abierto para ver errores
+    if (files.every(f => f.status === 'success')) {
+        setTimeout(onClose, 1000);
+    }
   };
   
   const isUploading = files.some(f => f.status === 'uploading');
 
   return (
     <Portal>
-        {/* Backdrop con blur y color oscuro suave */}
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            
-            {/* Contenedor del Modal */}
             <div 
                 className="bg-gray-900 border border-gray-700 w-full max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-zoomIn ring-1 ring-white/10"
                 onClick={e => e.stopPropagation()}
             >
-                {/* Header */}
                 <header className="p-5 border-b border-gray-700 bg-gray-800/50 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                         <CloudArrowUp size={24} className="text-blue-400"/> Subir Documentos
@@ -195,10 +238,7 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     </button>
                 </header>
 
-                {/* Contenido Scrollable */}
                 <div className="p-6 flex-1 overflow-y-auto space-y-5 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
-                    
-                    {/* Zona de Arrastre Mejorada */}
                     <div 
                         {...getRootProps()} 
                         className={clsx(
@@ -215,12 +255,8 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         </div>
                         <p className="font-semibold text-white text-lg">Arrastra archivos aquí</p>
                         <p className="text-sm text-gray-400 mt-1">o haz clic para explorar en tu ordenador</p>
-                        <p className="text-xs text-gray-500 mt-4 bg-gray-900/50 inline-block px-3 py-1 rounded-full border border-gray-700">
-                            Soporta: PDF, DOCX, TXT, Excel, PPTX
-                        </p>
                     </div>
                     
-                    {/* Lista de Archivos */}
                     {files.length > 0 && (
                         <div className="space-y-3">
                             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
@@ -230,17 +266,23 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             </p>
                             <div className="grid gap-3">
                                 {files.map(item => (
-                                    <FileConfigItem key={item.id} item={item} onUpdate={updateFileConfig} onRemove={removeFile} isUploading={isUploading} />
+                                    <FileConfigItem 
+                                        key={item.id} 
+                                        item={item} 
+                                        vectorStores={vectorStores}
+                                        onUpdate={updateFileConfig} 
+                                        onRemove={removeFile} 
+                                        isUploading={isUploading} 
+                                    />
                                 ))}
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* Footer */}
                 <footer className="p-5 bg-gray-800/50 border-t border-gray-700 flex justify-between items-center">
                     <span className="text-sm text-gray-400 font-mono">
-                        {files.length > 0 ? `${files.length} listo(s) para procesar` : 'Esperando archivos...'}
+                        {files.length > 0 ? `${files.length} archivo(s)` : 'Esperando archivos...'}
                     </span>
                     <div className="flex gap-3">
                         <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-lg transition-colors">
@@ -249,7 +291,7 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <button
                             onClick={handleUploadAll}
                             disabled={isUploading || files.length === 0}
-                            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none hover:translate-y-[-1px]"
+                            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:translate-y-[-1px]"
                         >
                             {isUploading ? <><CircleNotch size={18} className="animate-spin" /> Subiendo...</> : 'Procesar Todo'}
                         </button>

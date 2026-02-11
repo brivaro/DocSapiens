@@ -4,8 +4,7 @@ import warnings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import documents, chat, history, vector_stores, generation
-from app.db.session import engine, Base, SessionLocal
-from app.db import crud
+from app.db.session import engine, Base
 from app.settings.config import settings
 
 Base.metadata.create_all(bind=engine)
@@ -15,21 +14,10 @@ warnings.filterwarnings("ignore", category=UserWarning)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logging.info(f"[INFO] Iniciando {settings.PROJECT_NAME}...")
-    
-    with SessionLocal() as db:
-        crud.initialize_rag_config(db)
-
-        # Opcional: Lanzar un sync al inicio para asegurar que todo cuadra
-        # (Descomentar si se desea consistencia estricta al reiniciar)
-        # from services.document_service import document_service
-        # document_service.sync_active_collection()
     yield
     logging.info("[INFO] Aplicación apagada.")
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    lifespan=lifespan
-)
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

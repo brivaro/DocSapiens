@@ -19,6 +19,8 @@ export interface Message {
 
 export interface ChatRequestParams {
   question: string;
+  vector_store_id: string;
+  is_code_query?: boolean;
   k?: number;
   document_ids?: string[];
   tags?: string[];

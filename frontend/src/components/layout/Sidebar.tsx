@@ -1,17 +1,16 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { clsx } from 'clsx';
 import { 
-    House, FileText, ChatCircleDots, Gear, 
+    House, FileText, ChatCircleDots, Books,
     ArrowCircleLeft, ArrowCircleRight 
 } from 'phosphor-react';
-import { clsx } from 'clsx';
 
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: House },
   { name: 'Documentos', path: '/documents', icon: FileText },
   { name: 'Chat IA', path: '/chat', icon: ChatCircleDots },
-  { name: 'Configuración', path: '/settings', icon: Gear },
+  { name: 'Colecciones', path: '/collections', icon: Books },
 ];
-
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
