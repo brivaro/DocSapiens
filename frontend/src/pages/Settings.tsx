@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
     Gear, Database, Brain, FloppyDiskBack, Warning, 
-    CheckCircle, Faders, Info
+    CheckCircle, Faders, Info, ArrowClockwise
 } from 'phosphor-react';
 import { useRagSettings } from '../context/RagSettingsContext';
 import { useAppToast } from '../hooks/useAppToast';
@@ -9,39 +9,39 @@ import apiClient from '../api/client';
 import { TaskType } from '../interfaces/RagSettings';
 import { clsx } from 'clsx';
 
-// Opciones disponibles (alineadas con el backend)
 const DIMENSIONS = [128, 256, 512, 768, 1536, 2048, 3072];
 
+// Lista completa de opciones
 const TASK_TYPES: { value: TaskType; label: string; desc: string }[] = [
-    { value: "RETRIEVAL_QUERY", label: "Búsqueda Estándar (RAG)", desc: "Optimizado para buscar respuestas a preguntas específicas en tus documentos." },
-    { value: "SEMANTIC_SIMILARITY", label: "Similitud Semántica", desc: "Encuentra textos que significan lo mismo. Ideal para detección de duplicados." },
-    { value: "CLASSIFICATION", label: "Clasificación", desc: "Optimizado para categorizar textos en grupos predefinidos." },
-    { value: "CLUSTERING", label: "Agrupamiento (Clustering)", desc: "Organiza documentos por temas comunes sin etiquetas previas." },
-    { value: "QUESTION_ANSWERING", label: "Preguntas y Respuestas", desc: "Especializado para chatbots que responden preguntas factuales." },
-    { value: "FACT_VERIFICATION", label: "Verificación de Hechos", desc: "Busca evidencias para confirmar o refutar una afirmación." },
+    { value: "RETRIEVAL_QUERY", label: "Búsqueda Estándar (RAG)", desc: "El modo por defecto. Ideal para responder preguntas sobre tus documentos." },
+    { value: "QUESTION_ANSWERING", label: "Preguntas y Respuestas", desc: "Optimizado específicamente para sistemas de Q&A." },
+    { value: "FACT_VERIFICATION", label: "Verificación de Hechos", desc: "Ideal para comprobar la veracidad de afirmaciones contra tus documentos." },
+    { value: "CODE_RETRIEVAL_QUERY", label: "Búsqueda de Código", desc: "Si tus documentos contienen código de programación." },
+    { value: "SEMANTIC_SIMILARITY", label: "Similitud Semántica", desc: "Para encontrar documentos que 'significan lo mismo' (Simétrico)." },
+    { value: "CLASSIFICATION", label: "Clasificación", desc: "Para sistemas que categorizan texto." },
+    { value: "CLUSTERING", label: "Agrupamiento (Clustering)", desc: "Para organizar documentos por temas." },
+    // RETRIEVAL_DOCUMENT no se muestra porque es el tipo 'pasivo' para la ingesta en modos asimétricos
 ];
 
 export default function Settings() {
-    const { config, refreshConfig } = useRagSettings();
+    const { config, refreshConfig, isLoading } = useRagSettings();
     const toast = useAppToast();
     
-    // Estado local para el formulario
     const [selectedDim, setSelectedDim] = useState<number>(768);
     const [selectedTask, setSelectedTask] = useState<TaskType>("RETRIEVAL_QUERY");
     const [isSaving, setIsSaving] = useState(false);
 
-    // Sincronizar estado local con config global al cargar
     useEffect(() => {
         if (config) {
             setSelectedDim(config.embedding_dimension);
-            setSelectedTask(config.embedding_task_type);
+            // Si la config viene como RETRIEVAL_DOCUMENT (porque es nueva o por error), la mostramos como QUERY para que tenga sentido en la UI
+            setSelectedTask(config.embedding_task_type === "RETRIEVAL_DOCUMENT" ? "RETRIEVAL_QUERY" : config.embedding_task_type);
         }
     }, [config]);
 
     const handleSave = async () => {
         if (!config) return;
         
-        // Verificación visual de cambios
         if (selectedDim === config.embedding_dimension && selectedTask === config.embedding_task_type) {
             toast.info("No hay cambios para guardar.");
             return;
@@ -53,10 +53,8 @@ export default function Settings() {
                 embedding_dimension: selectedDim,
                 embedding_task_type: selectedTask
             });
-            
-            await refreshConfig(); // Recargar contexto global
-            
-            toast.success("Configuración actualizada. Sincronización iniciada en segundo plano.");
+            await refreshConfig();
+            toast.success("Configuración actualizada. Sincronización iniciada.");
         } catch (error) {
             console.error(error);
             toast.error("Error al guardar la configuración.");
@@ -65,11 +63,31 @@ export default function Settings() {
         }
     };
 
-    if (!config) return <div className="p-8 text-center text-gray-500">Cargando configuración...</div>;
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[50vh] text-gray-500">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mb-4"></div>
+                <p>Cargando configuración...</p>
+            </div>
+        );
+    }
+
+    if (!config && !isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[50vh] space-y-4">
+                <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-full text-red-500">
+                    <Warning size={48} />
+                </div>
+                <h2 className="text-xl font-bold text-white">Error de conexión</h2>
+                <button onClick={refreshConfig} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold flex items-center gap-2">
+                    <ArrowClockwise size={20} weight="bold"/> Reintentar
+                </button>
+            </div>
+        );
+    }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-10">
-            {/* Header */}
+        <div className="mx-auto space-y-8 animate-fade-in pb-10">
             <div className="flex items-center gap-4">
                 <div className="bg-gradient-to-br from-gray-700 to-gray-600 p-3 rounded-xl shadow-lg">
                     <Gear size={32} weight="fill" className="text-white" />
@@ -80,7 +98,6 @@ export default function Settings() {
                 </div>
             </div>
 
-            {/* Panel Principal */}
             <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden shadow-xl">
                 <div className="p-6 border-b border-gray-700 bg-gray-800/50">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -90,8 +107,7 @@ export default function Settings() {
                 </div>
                 
                 <div className="p-8 space-y-8">
-                    
-                    {/* 1. Selector de Dimensión */}
+                    {/* DIMENSIÓN */}
                     <section className="space-y-4">
                         <div className="flex justify-between items-start">
                             <div>
@@ -102,8 +118,7 @@ export default function Settings() {
                                     </span>
                                 </label>
                                 <p className="text-sm text-gray-400 mt-1 max-w-2xl">
-                                    Define el tamaño de los vectores. Dimensiones más bajas ahorran espacio y son más rápidas, pero pueden perder matices. 
-                                    <span className="text-green-400 font-medium"> 768 es el estándar recomendado.</span>
+                                    Define el tamaño de los vectores. <span className="text-green-400 font-medium"> 768 es el estándar recomendado.</span>
                                 </p>
                             </div>
                         </div>
@@ -124,24 +139,11 @@ export default function Settings() {
                                 </button>
                             ))}
                         </div>
-                        
-                        {selectedDim !== config.embedding_dimension && (
-                            <div className="flex items-start gap-3 p-4 bg-yellow-900/20 border border-yellow-600/30 rounded-xl">
-                                <Warning size={24} className="text-yellow-500 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-yellow-200 font-bold text-sm">Cambio de Dimensión Detectado</p>
-                                    <p className="text-yellow-400/80 text-xs mt-1">
-                                        Al guardar, el sistema iniciará una <strong>re-sincronización completa</strong> en segundo plano. 
-                                        Los documentos existentes se re-procesarán automáticamente para adaptarse a la dimensión {selectedDim}.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
                     </section>
 
                     <div className="h-px bg-gray-700" />
 
-                    {/* 2. Selector de Tipo de Tarea */}
+                    {/* TASK TYPE */}
                     <section className="space-y-4">
                         <div>
                             <label className="text-lg font-semibold text-white flex items-center gap-2">
@@ -149,7 +151,7 @@ export default function Settings() {
                                 Intención de Búsqueda (Task Type)
                             </label>
                             <p className="text-sm text-gray-400 mt-1">
-                                Optimiza cómo Google genera los embeddings según el uso que le darás a los documentos.
+                                Selecciona cómo vas a <strong>usar</strong> el sistema. El backend ajustará automáticamente la ingesta de documentos.
                             </p>
                         </div>
 
@@ -182,18 +184,21 @@ export default function Settings() {
                                 </button>
                             ))}
                         </div>
+                        
+                        <div className="p-4 bg-gray-900/50 rounded-lg border border-gray-600 text-xs text-gray-400">
+                            <p>
+                                <Info className="inline mr-1" /> Nota: Al seleccionar <strong>{selectedTask}</strong>, los documentos nuevos se indexarán automáticamente como 
+                                <span className="font-mono text-purple-300 ml-1">
+                                    {["SEMANTIC_SIMILARITY", "CLASSIFICATION", "CLUSTERING"].includes(selectedTask) ? selectedTask : "RETRIEVAL_DOCUMENT"}
+                                </span>.
+                            </p>
+                        </div>
                     </section>
                 </div>
 
-                {/* Footer de Acciones */}
                 <div className="p-6 bg-gray-900 border-t border-gray-700 flex justify-end items-center gap-4">
-                    <div className="text-xs text-gray-500 flex items-center gap-2 mr-auto">
-                        <Info size={16} />
-                        Modelo activo: <span className="font-mono text-gray-400">{config.embedding_model}</span>
-                    </div>
-
                     <button 
-                        onClick={() => { setSelectedDim(config.embedding_dimension); setSelectedTask(config.embedding_task_type); }}
+                        onClick={() => { setSelectedDim(config!.embedding_dimension); setSelectedTask(config!.embedding_task_type === "RETRIEVAL_DOCUMENT" ? "RETRIEVAL_QUERY" : config!.embedding_task_type); }}
                         className="px-4 py-2.5 text-sm font-medium text-gray-400 hover:text-white transition-colors"
                         disabled={isSaving}
                     >
@@ -222,28 +227,6 @@ export default function Settings() {
                             </>
                         )}
                     </button>
-                </div>
-            </div>
-            
-            {/* Tarjeta Informativa de Estado */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 flex items-center gap-4">
-                    <div className="bg-green-500/10 p-3 rounded-full">
-                         <CheckCircle size={32} className="text-green-500" weight="fill" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-white">Sistema Operativo</h3>
-                        <p className="text-sm text-gray-400">El backend de vectorización está activo y respondiendo.</p>
-                    </div>
-                </div>
-                <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 flex items-center gap-4">
-                    <div className="bg-blue-500/10 p-3 rounded-full">
-                         <Database size={32} className="text-blue-500" weight="fill" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-white">Colección Qdrant</h3>
-                        <p className="text-sm text-gray-400">Conectado a la colección <code>docsapiens_{config.embedding_dimension}</code></p>
-                    </div>
                 </div>
             </div>
         </div>

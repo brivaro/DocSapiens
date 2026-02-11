@@ -36,7 +36,7 @@ export const ChatInput = ({ onSend, onStop, isLoading, placeholder = "Haz una pr
   };
 
   return (
-    <div className="relative bg-gray-800 border border-gray-700 rounded-xl shadow-lg transition-colors focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/20">
+    <div className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-lg transition-colors focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/20">
         <textarea
             ref={textareaRef}
             value={input}

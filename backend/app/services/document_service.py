@@ -1,6 +1,6 @@
 import logging
 import hashlib
-from typing import List
+from typing import List, Optional
 from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
@@ -90,7 +90,6 @@ class DocumentService:
     def delete_document(self, doc_id: str) -> None:
         with self.db_session() as db:
             self.crud.delete_document(db, doc_id)
-        # Si se borra de la BD, se borra de TODOS lados
         qdrant.delete_all_chunks_for_document_globally(doc_id)
 
     # --- LISTADO ---
@@ -134,7 +133,6 @@ class DocumentService:
             logging.info(f"[SYNC] Importando {len(missing_docs)} documentos a dim={target_dim} ({target_task_type})...")
             
             for doc in missing_docs:
-                # Pasamos también el task_type al proceso
                 self._process_document_task(str(doc.id), sync_dimension=target_dim, sync_task_type=target_task_type)
 
     # --- TAREA DE PROCESAMIENTO (CORE) ---
@@ -152,14 +150,13 @@ class DocumentService:
                 # 2. Determinar Configuración
                 if sync_dimension:
                     dimension = sync_dimension
-                    # Si venimos de un sync manual, usamos el task type pasado
                     selected_task_type = sync_task_type or "RETRIEVAL_QUERY"
                 else:
                     config = self.crud.get_active_rag_config(db)
                     dimension = config.embedding_dimension if config else 768
                     selected_task_type = config.embedding_task_type if config else "RETRIEVAL_QUERY"
                 
-                # Convertimos la "Intención de Búsqueda" en "Tipo de Ingesta"
+                # LÓGICA DE GOOGLE: Convertimos la intención de búsqueda en tipo de ingesta
                 ingestion_task_type = get_ingestion_task_type(selected_task_type)
                 
                 logging.info(f"[TASK] Configurado: {selected_task_type} -> Ingestando como: {ingestion_task_type}")
@@ -169,8 +166,8 @@ class DocumentService:
 
                 self.crud.update_document_field(db, doc_id, "status", "processing")
                 
-                # 2. Texto (Extracción o Caché)
-                text = db_doc.text_content or _extract_text_from_content(db_doc.content, db_doc.content_type, db_doc.filename)
+                # 2. Texto
+                text = db_doc.text_content
                 if not text:
                     logging.info(f"[TASK] Extrayendo texto nuevo para {db_doc.filename}...")
                     text = _extract_text_from_content(db_doc.content, db_doc.content_type, db_doc.filename)
@@ -182,7 +179,7 @@ class DocumentService:
                 if not text or "Unsupported" in text or "Error" in text:
                     raise ValueError(f"No se pudo extraer texto válido.")
 
-                # 3. Preparar Splitter
+                # 3. Split
                 class DocParams:
                     split_mode = db_doc.split_mode
                     split_by = db_doc.split_by
@@ -192,21 +189,20 @@ class DocumentService:
                     content = db_doc.content
                     filename = db_doc.filename
 
-                # 4. Split
                 chunks = _split_text(text, str(db_doc.id), DocParams)
                 if not chunks:
                     raise ValueError("El splitter no generó chunks.")
 
                 texts_to_embed = [c.text for c in chunks]
                 
-                # 5. Embedding (CON TASK TYPE Y TÍTULO)
-                logging.info(f"[TASK] Embeddings: {len(texts_to_embed)} items | Dim: {dimension} | Type: {task_type}")
+                # 5. Embedding
+                logging.info(f"[TASK] Embeddings: {len(texts_to_embed)} items | Dim: {dimension} | Type: {ingestion_task_type}")
                 
                 vectors = google_service.generate_embeddings(
                     texts=texts_to_embed, 
                     model=model_name, 
                     dimension=dimension,
-                    task_type=ingestion_task_type,
+                    task_type=ingestion_task_type, # Usar el tipo correcto para documentos
                     doc_title=db_doc.filename
                 )
 
@@ -223,10 +219,10 @@ class DocumentService:
 
             except Exception as e:
                 logging.error(f"[TASK ERROR] Doc {doc_id}: {e}", exc_info=True)
-                db_doc = self.crud.get_document_by_id(db, doc_id) # Refresh session
+                db_doc = self.crud.get_document_by_id(db, doc_id)
                 if db_doc:
                     db_doc.status = "failed"
                     db_doc.error_message = str(e)
-                    db.commit()    
+                    db.commit()
 
 document_service = DocumentService()

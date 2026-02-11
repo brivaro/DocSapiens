@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import apiClient from '../../api/client'; // Importación corregida
-import { CircleNotch, Star, WarningCircle } from 'phosphor-react';
+import apiClient from '../../api/client';
+import { CircleNotch, Cube, Eye, Star, WarningCircle, Hash } from 'phosphor-react';
 
 interface Chunk {
   text: string;
@@ -22,50 +22,80 @@ const ChunkPanel: React.FC<Props> = ({ selectedDocId }) => {
     queryKey: ['chunks', selectedDocId],
     queryFn: () => fetchChunks(selectedDocId!),
     enabled: !!selectedDocId,
-    staleTime: 5 * 60 * 1000, 
+    staleTime: 5 * 60 * 1000,
   });
 
   if (!selectedDocId) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-6 text-gray-500">
-        <WarningCircle size={48} className="mb-2 opacity-50" />
-        <h3 className="text-lg font-semibold">Selecciona un documento</h3>
-        <p className="text-sm">Elige un archivo de la lista para ver sus fragmentos.</p>
+      <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-gray-800">
+        <Cube size={64} className="text-gray-700 mb-4 opacity-50" weight="duotone" />
+        <h3 className="text-lg font-semibold text-gray-300">Vista de Fragmentos</h3>
+        <p className="text-sm text-gray-500 mt-2 max-w-xs">
+            Selecciona un documento haciendo clic en el icono del ojo (<Eye className="inline" size={14} />) para ver cómo la IA divide y entiende tu archivo.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
-          <h2 className="text-xl font-bold text-gray-800">Fragmentos (Chunks)</h2>
-          {isFetching && <CircleNotch size={24} className="animate-spin text-blue-500" />}
+    <div className="h-full flex flex-col bg-gray-800 border-l border-gray-700 shadow-xl">
+      {/* Header Panel */}
+      <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800 shrink-0">
+        <h2 className="text-base font-bold text-white flex items-center gap-2">
+          <Cube size={20} className="text-blue-500" /> 
+          Fragmentos del Documento
+        </h2>
+        {isFetching && <CircleNotch size={18} className="animate-spin text-blue-400" />}
       </div>
-      
-      {isLoading && <p className="text-gray-500 text-center">Cargando chunks...</p>}
-      {error && <p className="text-red-500 text-sm">Error cargando chunks.</p>}
 
-      {chunks && chunks.length === 0 && !isLoading && (
-        <div className="flex flex-col items-center justify-center text-center p-4 bg-gray-50 rounded-lg mt-4">
-          <WarningCircle size={32} className="text-yellow-500 mb-2" />
-          <p className="text-sm text-gray-600">Este archivo no tiene texto extraíble o no ha sido procesado aún.</p>
-        </div>
+      {/* Loading State */}
+      {isLoading && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-2">
+              <CircleNotch size={32} className="animate-spin text-blue-500" />
+              <p className="text-sm text-gray-400">Recuperando vectores...</p>
+          </div>
       )}
       
-      <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-300">
+      {/* Error State */}
+      {error && (
+          <div className="p-4 bg-red-900/20 border border-red-500/20 m-4 rounded-lg text-red-400 text-sm">
+              Error cargando los fragmentos. Intenta re-indexar el documento.
+          </div>
+      )}
+
+      {/* Empty State */}
+      {chunks && chunks.length === 0 && !isLoading && (
+        <div className="flex flex-col items-center justify-center text-center p-8 mt-4">
+          <WarningCircle size={48} className="text-yellow-500/50 mb-2" />
+          <p className="text-sm text-gray-400 font-medium">Sin contenido indexado</p>
+          <p className="text-xs text-gray-500 mt-1 px-4">
+            Este archivo no tiene texto extraíble o no se ha procesado correctamente en la base vectorial.
+          </p>
+        </div>
+      )}
+
+      {/* Chunks List */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
         {chunks && [...chunks]
           .sort((a, b) => a.chunk_id - b.chunk_id)
           .map((chunk) => (
-            <div key={chunk.chunk_id} className="p-4 bg-white border border-gray-200 rounded-lg transition hover:shadow-md hover:border-blue-300">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-xs font-bold font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">CHUNK #{chunk.chunk_id}</p>
-                 <button className="p-1 text-gray-400 hover:text-yellow-500">
-                    <Star size={16} />
+            <div key={chunk.chunk_id} className="bg-gray-750 border border-gray-700 rounded-lg p-3 hover:border-blue-500/30 transition-all group shadow-sm">
+              <div className="flex justify-between items-center mb-2 border-b border-gray-700/50 pb-2">
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold font-mono text-blue-300 bg-blue-900/30 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
+                        <Hash size={10} /> {chunk.chunk_id}
+                    </span>
+                </div>
+                {/* Placeholder para futuras acciones por chunk */}
+                <button className="text-gray-600 hover:text-yellow-400 transition-colors opacity-0 group-hover:opacity-100">
+                  <Star size={14} weight="fill" />
                 </button>
               </div>
-              <p className="text-sm text-gray-700 leading-relaxed break-words font-mono">
+              
+              {/* CORRECCIÓN VISUAL PRINCIPAL: */}
+              <div className="text-sm text-gray-300 font-mono bg-gray-900/50 p-2 rounded border border-gray-700/30 whitespace-pre-wrap break-words leading-relaxed">
                 {chunk.text}
-              </p>
+              </div>
             </div>
           ))}
       </div>

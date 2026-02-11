@@ -1,8 +1,8 @@
-import io, fitz, pdfplumber, docx, pandas as pd, pptx
+import io, fitz, docx, pandas as pd, pptx
 import logging
+# Eliminamos pdfplumber si da problemas en Alpine, fitz (PyMuPDF) es mejor
 
 def _get_file_type(filename: str, content_type: str) -> str:
-        # Mapeo de content_types conocidos a tipos simples
         content_type_map = {
             "application/pdf": "pdf",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
@@ -12,21 +12,18 @@ def _get_file_type(filename: str, content_type: str) -> str:
             "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
             "application/vnd.ms-powerpoint": "pptx",
             "text/plain": "txt",
-            "text/csv": "txt",  # CSV se trata como texto
-            #"text/csv": "csv"
+            "text/csv": "txt", 
         }
         
-        # Si el content_type es específico, lo usamos
         if content_type in content_type_map:
             return content_type_map[content_type]
         
-        # Si es genérico (como octet-stream) o texto, miramos la extensión
         if content_type.startswith("text/") or content_type == "application/octet-stream":
             extension = filename.split('.')[-1].lower()
             extension_map = {
                 "pdf": "pdf", "docx": "docx", "txt": "txt",
                 "xlsx": "xlsx", "xls": "xls", "pptx": "pptx",
-                "ppt": "pptx", "csv": "txt"
+                "ppt": "pptx", "csv": "txt", "md": "txt", "py": "txt", "js": "txt"
             }
             return extension_map.get(extension, "unsupported")
             
@@ -34,16 +31,12 @@ def _get_file_type(filename: str, content_type: str) -> str:
     
 def _extract_text_from_content(content: bytes, content_type: str, filename: str) -> str:
         file_type = _get_file_type(filename, content_type)
-        logging.info(f"[INFO] Tipo de archivo determinado como: {file_type}")
+        logging.info(f"[INFO] Extractor: Archivo '{filename}' detectado como '{file_type}'")
 
         try:
             if file_type == "pdf":
-                try:
-                    with fitz.open(stream=content, filetype="pdf") as doc:
-                        return "\n".join(page.get_text() for page in doc)
-                except Exception:
-                    with pdfplumber.open(io.BytesIO(content)) as pdf:
-                        return "\n".join(page.extract_text() or "" for page in pdf.pages)
+                with fitz.open(stream=content, filetype="pdf") as doc:
+                    return "\n".join(page.get_text() for page in doc)
             
             elif file_type == "docx":
                 docx_file = io.BytesIO(content)
@@ -52,7 +45,7 @@ def _extract_text_from_content(content: bytes, content_type: str, filename: str)
             
             elif file_type in ["xlsx", "xls"]:
                 excel_file = io.BytesIO(content)
-                xls = pd.read_excel(excel_file, sheet_name=None, engine='openpyxl' if file_type == 'xlsx' else 'xlrd')
+                xls = pd.read_excel(excel_file, sheet_name=None)
                 full_text = []
                 for sheet_name, df in xls.items():
                     full_text.append(f"--- Hoja: {sheet_name} ---\n")
@@ -70,16 +63,15 @@ def _extract_text_from_content(content: bytes, content_type: str, filename: str)
                 return "\n".join(full_text)
 
             elif file_type == "txt":
-                return content.decode(errors="ignore")
-            
-            elif file_type == "csv": # De momento no se usa, me gusta que vaya por txt
-                csv_file = io.BytesIO(content)
-                df = pd.read_csv(csv_file)
-                return df.to_string(index=False)
+                # Intentar decodificar con utf-8, fallback a latin-1
+                try:
+                    return content.decode('utf-8')
+                except UnicodeDecodeError:
+                    return content.decode('latin-1')
 
-            else: # file_type == "unsupported"
-                logging.info(f"[WARNING] Tipo de archivo no soportado '{content_type}' para el archivo '{filename}'. No se extraerá texto.")
-                return "[Unsupported file type for text extraction]"
+            else:
+                logging.warning(f"[WARNING] Tipo no soportado: {file_type}")
+                return "" # Retornar vacío en lugar de mensaje de error para manejarlo mejor arriba
         except Exception as e:
-            logging.info(f"[ERROR] No se pudo extraer texto del archivo '{filename}' (tipo: {file_type}). Error: {e}")
-            return f"[Error extracting text: {e}]"
+            logging.error(f"[ERROR] Excepción extrayendo texto: {e}")
+            raise e # Relanzar para que el servicio capture el error real

@@ -17,6 +17,17 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
         pos = 0
         idx = 0
 
+        # --- MODO 1: JUNTO (WHOLE) ---
+        if split_mode == "whole":
+            logging.info(f"[INFO] Modo 'whole': Guardando documento entero como un solo chunk.")
+            # Si es muy grande, Qdrant podría rechazarlo, pero cumplimos la orden del usuario.
+            # Limpiamos un poco el texto de nulos
+            clean_text = text.replace('\x00', '')
+            if clean_text.strip():
+                chunks.append(create_chunk_to_list(doc_id, 0, clean_text, 0, len(clean_text), "whole"))
+            return chunks
+
+        # --- MODO 2: PÁGINAS ---
         if split_mode == "pages":
             file_type = _get_file_type(filename, content_type)
             logging.info(f"[INFO] Dividiendo por páginas para el tipo de archivo: {file_type}")
@@ -67,12 +78,12 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
                 
                 else:
                     logging.info(f"[WARNING] No se puede dividir por páginas para el tipo '{file_type}'. Se usará el modo delimitador.")
-                    split_mode = "delimiter" # Fallback a delimitador
-
+                    # Fallback continúa abajo
             except Exception as e:
                 logging.info(f"[ERROR] Error al dividir por páginas: {e}. Se usará el modo delimitador.")
-                split_mode = "delimiter" # Fallback a delimitador
+                # Fallback continúa abajo
 
+        # --- MODO 3: TAMAÑO FIJO ---
         if split_mode == "size" and chunk_size and chunk_size > 0:
             logging.info(f"[INFO] Dividiendo texto en chunks de tamaño {chunk_size} con superposición de {overlap}.")
             text_len = len(text)
@@ -86,10 +97,10 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
                 idx += 1
             return chunks
 
-        # Modo por defecto y fallback: "delimiter"
+        # --- MODO 4 (DEFAULT): DELIMITADOR ---
         logging.info(f"[INFO] Dividiendo texto por delimitador '{split_by}' (reteniendo el delimitador).")
         
-        # Paso 1: Encontrar todas las posiciones de inicio del delimitador.
+        # Lógica de split por delimitador (Misma que antes)
         indices = []
         start_index = 0
         while True:
@@ -97,50 +108,43 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
             if pos == -1:
                 break
             indices.append(pos)
-            start_index = pos + 1 # Continuar la búsqueda después de la posición encontrada
+            start_index = pos + 1 
         
-        # Paso 2: Usar los índices para cortar el texto en chunks.
         parts = []
         last_pos = 0
         
-        # El primer chunk es desde el inicio hasta el primer delimitador.
         if indices:
             first_delimiter_pos = indices[0]
             parts.append(text[last_pos:first_delimiter_pos])
             last_pos = first_delimiter_pos
         
-        # Los chunks intermedios van de un delimitador al siguiente.
         for i in range(len(indices) - 1):
             start_of_chunk = indices[i]
             end_of_chunk = indices[i+1]
             parts.append(text[start_of_chunk:end_of_chunk])
             last_pos = end_of_chunk
             
-        # El último chunk va desde el último delimitador hasta el final del texto.
         if indices:
             last_delimiter_pos = indices[-1]
             parts.append(text[last_delimiter_pos:])
-        # Si no se encontraron delimitadores, el texto completo es el único chunk.
         elif not parts and text:
             parts.append(text)
 
-        # Ahora, convierte las partes en objetos DocumentChunk, calculando las posiciones.
         current_pos_in_text = 0
         for part in parts:
-            # Ignoramos chunks que estén vacíos o solo contengan espacios en blanco.
             if part.strip():
                 start = text.find(part, current_pos_in_text)
-                if start != -1: # Asegurarnos de que encontramos la parte
+                if start != -1:
                     end = start + len(part)
                     chunks.append(
                         create_chunk_to_list(doc_id, idx, part, start, end, "delimiter")
                     )
-                    # Actualizamos la posición para la siguiente búsqueda para manejar partes idénticas
                     current_pos_in_text = start + 1 
                     idx += 1
                 else:
-                    # Fallback por si find no funciona (muy improbable con esta lógica)
-                    logging.info(f"[WARNING] No se pudo encontrar la posición del chunk: '{part[:50]}...'")
+                    # Fallback simple si find falla por caracteres especiales
+                    chunks.append(create_chunk_to_list(doc_id, idx, part, 0, 0, "delimiter"))
+                    idx += 1
 
         return chunks
 
@@ -150,9 +154,6 @@ def create_chunk_to_list(
         file_type: str = "", 
         page_num: int = 0, page_name: str = ""
 ) -> DocumentChunk:
-    """
-    Helper function to append a new chunk to the list of chunks.
-    """
     if mode == "pages":
         if file_type == "pdf":
             text = f"Página {page_num + 1}:\n{text}"

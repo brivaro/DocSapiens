@@ -22,7 +22,6 @@ function Layout() {
 
     return (
         <div className="flex h-screen bg-gray-900 text-white overflow-hidden font-sans">
-            {/* Sistema de notificaciones estilo ERP */}
             <Toaster 
                 position="top-right"
                 toastOptions={{
@@ -41,7 +40,7 @@ function Layout() {
                 <Header isSidebarCollapsed={isSidebarCollapsed} toggleSidebar={handleToggleSidebar} />
                 
                 <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                    <div className="w-full h-full mx-auto max-w-7xl animate-fade-in">
+                    <div className="w-full h-full mx-auto animate-fade-in">
                          <Outlet />
                     </div>
                 </main>

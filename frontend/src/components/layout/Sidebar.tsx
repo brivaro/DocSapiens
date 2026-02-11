@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
     House, FileText, ChatCircleDots, Gear, 
-    ArrowCircleLeft, ArrowCircleRight, Brain 
+    ArrowCircleLeft, ArrowCircleRight 
 } from 'phosphor-react';
 import { clsx } from 'clsx';
 
@@ -30,10 +30,12 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       {/* Header del Sidebar (Logo) */}
       <div className="flex items-center h-16 px-4 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center justify-center w-12 flex-shrink-0">
-           {/* Logo Icono: Un cerebro o algo representativo */}
-           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
-             <Brain size={24} weight="fill" className="text-white" />
-           </div>
+           {/* LOGO PERSONALIZADO */}
+           <img 
+             src="/docsapiens.png" 
+             alt="Logo" 
+             className="w-10 h-10 rounded-lg object-cover shadow-lg" 
+           />
         </div>
         <span
           className={clsx(

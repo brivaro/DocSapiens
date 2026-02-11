@@ -20,37 +20,42 @@ interface Props {
 
 const ChatSettingsButton: React.FC<Props> = ({ isCollapsed, settings, onSettingsChange }) => {
     const [open, setOpen] = React.useState(false);
+    
     if (!isCollapsed && !open) return null;
+    
     if (!open) {
         return (
             <button
                 onClick={() => setOpen(true)}
-                className="p-3 rounded-full bg-white border text-blue-600 shadow-sm hover:bg-gray-100 animate-subtle-pulse"
-                aria-label="Open model settings"
+                className="p-3 rounded-full bg-gray-800 border border-gray-700 text-blue-400 shadow-lg hover:bg-gray-700 hover:text-white transition-colors"
+                aria-label="Configurar Modelo"
             >
                 <Robot size={24} weight="fill" />
             </button>
         );
     }
-    // Panel de settings (copiado del panel original, pero autocontenible)
+
     return (
-        <div className="bg-white p-4 rounded-xl border border-gray-200 h-full flex flex-col gap-6 w-80 transition-all">
-            <div className="flex justify-between items-center border-b pb-3">
-                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <Robot size={20} weight="fill" /> Model Settings
+        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 h-full flex flex-col gap-6 w-80 transition-all shadow-2xl z-20">
+            <div className="flex justify-between items-center border-b border-gray-700 pb-3">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Robot size={20} weight="fill" className="text-blue-500"/> Model Settings
                 </h2>
-                <button onClick={() => setOpen(false)} className="p-1 rounded-full hover:bg-gray-100">
+                <button onClick={() => setOpen(false)} className="p-1 rounded-full text-gray-400 hover:text-white hover:bg-gray-700 transition-colors">
                     <X size={20} />
                 </button>
             </div>
-            <div className="flex-1 flex flex-col gap-6 overflow-visible pr-2">
+            
+            <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                 {settings && onSettingsChange && <>
+                
+                {/* Model Select */}
                 <div>
-                    <label className="text-sm font-semibold text-gray-700 mb-2 block">Model</label>
+                    <label className="text-sm font-semibold text-gray-300 mb-2 block">Modelo</label>
                     <select
                         value={settings.model}
                         onChange={e => onSettingsChange({ model: e.target.value })}
-                        className="form-select w-full"
+                        className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none"
                     >
                         <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
                         <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
@@ -58,44 +63,41 @@ const ChatSettingsButton: React.FC<Props> = ({ isCollapsed, settings, onSettings
                         <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
                     </select>
                 </div>
+
+                {/* Sliders */}
                 <div>
-                    <label htmlFor="temp-slider" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                        Temperature <Tooltip text="Controls randomness. Lower is more predictable, higher is more creative." />
-                        <span className="ml-auto font-bold text-blue-600">{settings.temperature}</span>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
+                        Temperatura <Tooltip text="Creatividad vs Precisión" />
+                        <span className="ml-auto font-bold text-blue-400 text-xs bg-blue-900/30 px-2 rounded">{settings.temperature}</span>
                     </label>
-                    <input id="temp-slider" type="range" min="0" max="2" step="0.1" value={settings.temperature} onChange={e => onSettingsChange({ temperature: parseFloat(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    <input type="range" min="0" max="2" step="0.1" value={settings.temperature} onChange={e => onSettingsChange({ temperature: parseFloat(e.target.value) })} className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500" />
                 </div>
+
                 <div>
-                    <label htmlFor="top-k-slider" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                        Top K <Tooltip text="The model considers the top K most likely tokens at each step." />
-                        <span className="ml-auto font-bold text-blue-600">{settings.top_k}</span>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
+                        Max Tokens <Tooltip text="Límite de respuesta" />
+                        <span className="ml-auto font-bold text-green-400 text-xs bg-green-900/30 px-2 rounded">{settings.max_output_tokens}</span>
                     </label>
-                    <input id="top-k-slider" type="range" min="1" max="50" step="1" value={settings.top_k} onChange={e => onSettingsChange({ top_k: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    <input type="range" min="64" max="4096" step="64" value={settings.max_output_tokens} onChange={e => onSettingsChange({ max_output_tokens: parseInt(e.target.value) })} className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-500" />
                 </div>
+                
+                {/* Inputs */}
                 <div>
-                    <label htmlFor="max-tokens-slider" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                        Max Tokens <Tooltip text="Maximum number of tokens to generate in the response." />
-                        <span className="ml-auto font-bold text-blue-600">{settings.max_output_tokens}</span>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
+                        Thinking Budget <Tooltip text="Tokens para razonamiento (Solo modelos 2.5+)" />
                     </label>
-                    <input id="max-tokens-slider" type="range" min="64" max="2048" step="64" value={settings.max_output_tokens} onChange={e => onSettingsChange({ max_output_tokens: parseInt(e.target.value) })} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                    <input type="number" step="128" value={settings.thinking_budget} onChange={e => onSettingsChange({ thinking_budget: parseInt(e.target.value) })} className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none" placeholder="e.g., 1024" />
                 </div>
+
                 <div>
-                    <label htmlFor="thinking-budget-input" className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                        Thinking Budget <Tooltip text="Tokens for reasoning (Gemini 2.5+). 0 disables it, -1 makes it dynamic." />
-                    </label>
-                    <input id="thinking-budget-input" type="number" step="128" value={settings.thinking_budget} onChange={e => onSettingsChange({ thinking_budget: parseInt(e.target.value) })} className="form-input w-full" placeholder="e.g., 1024" />
-                </div>
-                <div>
-                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                        System Instruction
-                        <Tooltip text="Guides the model's personality and response style. E.g., 'You are a helpful pirate.'" />
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
+                        System Instruction <Tooltip text="Personalidad de la IA" />
                     </label>
                     <textarea
                         value={settings.system_instruction}
                         onChange={e => onSettingsChange({ system_instruction: e.target.value })}
-                        placeholder="e.g., You are a helpful assistant..."
-                        className="form-textarea w-full h-16 resize-none p-2 bg-slate-50 border-dashed border-slate-300 rounded-md focus:border-solid focus:border-blue-500 focus:bg-white"
-                        rows={5}
+                        placeholder="Eres un asistente útil..."
+                        className="w-full h-24 resize-none p-3 bg-gray-900 border border-gray-600 rounded-lg text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none scrollbar-thin scrollbar-thumb-gray-600"
                     />
                 </div>
                 </>}
