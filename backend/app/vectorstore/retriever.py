@@ -8,43 +8,36 @@ import logging
 
 def retrieve_chunks(
     query: str, 
+    vector_store_id: str,
     top_k: int = 5, 
     document_ids: Optional[List[str]] = None,
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = None,
+    search_task_type: str = "RETRIEVAL_QUERY" # Query por defecto
 ) -> List[Chunk]:
     
     with SessionLocal() as db:
-        config = crud.get_active_rag_config(db)
-        if not config:
-            dimension = 768
-            model_name = "gemini-embedding-001"
-            # Default fallback
-            query_task_type = "RETRIEVAL_QUERY"
-        else:
-            dimension = config.embedding_dimension
-            model_name = config.embedding_model
-            # Usamos directamente lo que el usuario configuró como su intención
-            query_task_type = config.embedding_task_type
+        vs = crud.get_vector_store(db, vector_store_id)
+        if not vs:
+            raise ValueError("Vector Store no encontrado.")
+        
+        dimension = vs.embedding_dimension
+        model_name = vs.embedding_model
+        collection_name = f"{vs.name}_{dimension}"
 
-    logging.info(f"[RETRIEVER] Buscando con tarea: {query_task_type} (Dim: {dimension})")
-
-    # Generar embedding de la pregunta usando el tipo específico
-    # (ej: QUESTION_ANSWERING, CODE_RETRIEVAL_QUERY, FACT_VERIFICATION)
+    # Generar embedding de la pregunta
     embeddings = google_service.generate_embeddings(
         texts=[query], 
         model=model_name, 
         dimension=dimension,
-        task_type=query_task_type
+        task_type=search_task_type
     )
     
-    if not embeddings:
-        raise ValueError("[ERROR] No se pudo generar el embedding para la consulta.")
-    
+    if not embeddings: return []
     query_vector = embeddings[0]
 
     hits = qdrant.search_vectors(
+        collection_name=collection_name,
         query_vector=query_vector,
-        dimension=dimension,
         top_k=top_k,
         document_ids=document_ids,
         tags=tags

@@ -15,6 +15,7 @@ def upload_document(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     file: UploadFile = File(...),
+    vector_store_id: str = Form(...),
     split_mode: str = Form("delimiter"),
     split_by: str = Form("\n\n"),
     chunk_size: Optional[int] = Form(1000),
@@ -29,6 +30,7 @@ def upload_document(
         filename=file.filename,
         content_type=file.content_type,
         content=content,
+        vector_store_id=vector_store_id,
         split_by=split_by,
         split_mode=split_mode,
         chunk_size=chunk_size,
@@ -36,8 +38,10 @@ def upload_document(
         tags=tags_list
     )
 
-    db_doc = document_service.create_document(doc_create, background_tasks, db)
-    return db_doc # Pydantic hará la conversión a DocumentResponse
+    try:
+        return document_service.create_document(doc_create, background_tasks, db)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/{doc_id}/reindex", response_model=DocumentResponse)
 def reindex_document(
@@ -57,8 +61,9 @@ def reindex_document(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=list[DocumentResponse])
-def list_documents() -> list[DocumentResponse]:
-    return document_service.list_documents()
+def list_documents(vector_store_id: Optional[str] = None) -> list[DocumentResponse]:
+    # Filtrar por colección si se pide
+    return document_service.list_documents(vector_store_id)
 
 @router.get("/{doc_id}/chunks/", response_model=list[DocumentChunk]) 
 def get_document_chunks_endpoint(doc_id: str) -> list[DocumentChunk]:

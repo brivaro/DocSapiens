@@ -3,12 +3,10 @@ import logging
 import warnings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import documents, chat, history
+from app.api.v1 import documents, chat, history, vector_stores, generation
 from app.db.session import engine, Base, SessionLocal
 from app.db import crud
 from app.settings.config import settings
-from app.api.v1 import generation
-from app.api.v1 import rag_settings
 
 Base.metadata.create_all(bind=engine)
 
@@ -45,7 +43,7 @@ app.include_router(documents.router, prefix="/api/v1/documents", tags=["Document
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(generation.router, prefix="/api/v1/embeddings", tags=["AI Voice"]) 
 app.include_router(history.router, prefix="/api/v1/history", tags=["History"])
-app.include_router(rag_settings.router, prefix="/api/v1/settings", tags=["Settings"])
+app.include_router(vector_stores.router, prefix="/api/v1/vector-stores", tags=["Vector Stores"])
 
 @app.get("/")
 def read_root():
