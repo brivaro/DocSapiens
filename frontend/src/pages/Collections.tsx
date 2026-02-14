@@ -48,12 +48,13 @@ export default function Collections() {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm text-gray-400 mb-1">Nombre (sin espacios)</label>
+                                <label className="block text-sm text-gray-400 mb-1">Nombre (a-z, 0-9, _ , -)</label>
                                 <input 
                                     autoFocus
                                     type="text" 
                                     value={name}
-                                    onChange={e => setName(e.target.value.replace(/\s+/g, '_'))}
+                                    // FIX: Regex estricto en tiempo real
+                                    onChange={e => setName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
                                     placeholder="ej: manuales_tecnicos_2024"
                                     className="w-full bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono"
                                 />

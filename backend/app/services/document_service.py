@@ -130,7 +130,15 @@ class DocumentService:
                 )
 
                 # 4. Upsert
-                vector_objs = qdrant.generate_vector_objects(vectors, chunks, str(db_doc.id), db_doc.filename, db_doc.tags)
+                vector_objs = qdrant.generate_vector_objects(
+                    embeddings=vectors, 
+                    chunks=chunks, 
+                    doc_id=str(db_doc.id),
+                    filename=db_doc.filename, 
+                    tags=db_doc.tags
+                )
+
+                # 5. Upsert
                 qdrant.upsert_vectors(collection_name, vector_objs)
 
                 # 5. Finish

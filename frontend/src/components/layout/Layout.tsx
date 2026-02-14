@@ -21,6 +21,7 @@ function Layout() {
     const handleToggleSidebar = () => setSidebarCollapsed((prev: boolean) => !prev);
 
     return (
+        // FIX: h-screen y overflow-hidden
         <div className="flex h-screen bg-gray-900 text-white overflow-hidden font-sans">
             <Toaster 
                 position="top-right"
@@ -39,7 +40,8 @@ function Layout() {
             >
                 <Header isSidebarCollapsed={isSidebarCollapsed} toggleSidebar={handleToggleSidebar} />
                 
-                <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                {/* FIX: Main es el único con scroll */}
+                <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent bg-gray-900">
                     <div className="w-full h-full mx-auto animate-fade-in">
                          <Outlet />
                     </div>

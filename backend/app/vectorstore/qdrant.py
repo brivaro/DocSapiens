@@ -1,5 +1,5 @@
 import logging
-from typing import List, Set
+from typing import List, Set, Any
 import uuid
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -66,26 +66,58 @@ def search_vectors(
     )
 
 def fetch_chunks_by_document_id(collection_name: str, doc_id: str, limit: int = 2000) -> List[DocumentChunk]:
-    if not client.collection_exists(collection_name): return []
+    if not client.collection_exists(collection_name):
+        logging.warning(f"[QDRANT] La colección {collection_name} no existe.")
+        return []
 
-    response, _ = client.scroll(
-        collection_name=collection_name,
-        scroll_filter=Filter(must=[FieldCondition(key="document_id", match=MatchValue(value=doc_id))]),
-        limit=limit,
-        with_payload=True,
-        with_vectors=False
-    )
-    
-    chunks = [
-        DocumentChunk(
-            document_id=pt.payload.get("document_id"),
-            chunk_id=pt.payload.get("chunk_id"),
-            text=pt.payload.get("text"),
-            start=pt.payload.get("start", 0),
-            end=pt.payload.get("end", 0)
-        ) for pt in response
-    ]
-    return sorted(chunks, key=lambda x: x.chunk_id)
+    str_doc_id = str(doc_id)
+    logging.info(f"[QDRANT] Buscando chunks para DocID: {str_doc_id} en {collection_name}")
+
+    try:
+        response, _ = client.scroll(
+            collection_name=collection_name,
+            scroll_filter=Filter(
+                must=[
+                    FieldCondition(key="document_id", match=MatchValue(value=str_doc_id))
+                ]
+            ),
+            limit=limit,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        logging.info(f"[QDRANT] Encontrados {len(response)} puntos/chunks.")
+
+        chunks = []
+        for i, pt in enumerate(response):
+            # Asegurar que el payload es un diccionario
+            payload: dict = dict(pt.payload) if pt.payload else {}
+            
+            # LOG DE DEBUG (Solo el primero para no saturar)
+            if i == 0:
+                logging.info(f"[QDRANT DEBUG] Payload del primer chunk: {payload.keys()}")
+
+            # Extracción robusta con logs de error si falta texto
+            text_val = str(payload.get("text", ""))
+            if not text_val:
+                # Intento de fallback por si la clave cambió
+                text_val = str(payload.get("page_content", ""))
+            
+            chunks.append(
+                DocumentChunk(
+                    document_id=str(payload.get("document_id", str_doc_id)),
+                    chunk_id=int(payload.get("chunk_id", 0)),
+                    text=text_val,
+                    start=int(payload.get("start", 0)),
+                    end=int(payload.get("end", 0))
+                )
+            )
+        
+        return sorted(chunks, key=lambda x: x.chunk_id)
+        
+    except Exception as e:
+        logging.error(f"[QDRANT ERROR] Error al recuperar chunks: {e}")
+        return []
 
 def delete_document_from_collection(collection_name: str, doc_id: str):
     if client.collection_exists(collection_name):

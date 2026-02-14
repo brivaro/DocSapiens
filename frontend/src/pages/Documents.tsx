@@ -13,15 +13,34 @@ import { CloudArrowUp } from 'phosphor-react';
 type SelectOption = { value: string; label: string };
 
 const selectStyles = {
-    control: (base: any) => ({ ...base, backgroundColor: '#374151', borderColor: '#4b5563', color: 'white' }),
-    menu: (base: any) => ({ ...base, backgroundColor: '#1f2937', border: '1px solid #374151' }),
+    control: (base: any) => ({ 
+        ...base, 
+        backgroundColor: '#1f2937', 
+        borderColor: '#4b5563', 
+        color: 'white',
+        minHeight: '42px'
+    }),
+    menu: (base: any) => ({ 
+        ...base, 
+        backgroundColor: '#1f2937', 
+        border: '1px solid #374151',
+        zIndex: 9999 // Asegurar visibilidad
+    }),
+    menuPortal: (base: any) => ({ 
+        ...base, 
+        zIndex: 9999 
+    }),
     option: (base: any, state: { isFocused: boolean; isSelected: boolean }) => ({
-        ...base, backgroundColor: state.isSelected ? '#2563eb' : state.isFocused ? '#374151' : 'transparent', color: 'white', cursor: 'pointer',
+        ...base, 
+        backgroundColor: state.isSelected ? '#2563eb' : state.isFocused ? '#374151' : 'transparent', 
+        color: 'white', 
+        cursor: 'pointer',
     }),
     singleValue: (base: any) => ({ ...base, color: 'white' }),
-    multiValue: (base: any) => ({ ...base, backgroundColor: '#4b5563' }),
+    multiValue: (base: any) => ({ ...base, backgroundColor: '#374151', border: '1px solid #4b5563' }),
     multiValueLabel: (base: any) => ({ ...base, color: 'white' }),
     input: (base: any) => ({ ...base, color: 'white' }),
+    placeholder: (base: any) => ({ ...base, color: '#9ca3af' }),
 };
 
 const Documents: React.FC = () => {
@@ -54,7 +73,6 @@ const Documents: React.FC = () => {
     chunk_count: doc.chunk_count || 0
   }));
 
-  // Toggle de selección
   const handleViewChunks = (docId: string) => {
       setSelectedDocId(prev => prev === docId ? null : docId);
   };
@@ -95,17 +113,33 @@ const Documents: React.FC = () => {
             </header>
             
             {/* Filtros */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4 z-10 relative">
               <div className="relative">
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full h-full py-2 pl-10 pr-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" />
               </div>
-              <Select options={[{ value: 'all', label: 'Todos' }, { value: 'processed', label: 'Procesados' }, { value: 'processing', label: 'Procesando' }, { value: 'failed', label: 'Fallidos' }]} onChange={setStatusFilter} placeholder="Estado" styles={selectStyles} classNamePrefix="react-select" isClearable />
-              <Select isMulti options={useMemo(() => { const tagsSet = new Set<string>(); apiDocuments.forEach(doc => doc.tags?.forEach(tag => { if (tag) tagsSet.add(tag); })); return Array.from(tagsSet).sort().map(tag => ({ value: tag, label: tag })); }, [apiDocuments])} onChange={setTagFilter} placeholder="Etiquetas" styles={selectStyles} classNamePrefix="react-select" />
+              <Select 
+                options={[{ value: 'all', label: 'Todos' }, { value: 'processed', label: 'Procesados' }, { value: 'processing', label: 'Procesando' }, { value: 'failed', label: 'Fallidos' }]} 
+                onChange={setStatusFilter} 
+                placeholder="Estado" 
+                styles={selectStyles} 
+                classNamePrefix="react-select" 
+                isClearable 
+                menuPortalTarget={document.body}
+              />
+              <Select 
+                isMulti 
+                options={useMemo(() => { const tagsSet = new Set<string>(); apiDocuments.forEach(doc => doc.tags?.forEach(tag => { if (tag) tagsSet.add(tag); })); return Array.from(tagsSet).sort().map(tag => ({ value: tag, label: tag })); }, [apiDocuments])} 
+                onChange={setTagFilter} 
+                placeholder="Etiquetas" 
+                styles={selectStyles} 
+                classNamePrefix="react-select" 
+                menuPortalTarget={document.body}
+              />
             </div>
             
             {/* Tabla con estado vacío */}
-            <div className="overflow-y-auto min-h-0 bg-gray-900/50 rounded-lg border border-gray-700">
+            <div className="overflow-y-auto min-h-0 bg-gray-900/50 rounded-lg border border-gray-700 z-0">
               {isLoading ? (
                   <div className="flex justify-center items-center h-full text-gray-400">Cargando...</div>
               ) : tableData.length === 0 ? (
@@ -117,10 +151,10 @@ const Documents: React.FC = () => {
               ) : (
                 <DocumentTable 
                   documents={tableData} 
-                  onViewChunks={handleViewChunks} // Nueva prop para el ojo
+                  onViewChunks={handleViewChunks} 
                   selectedDocId={selectedDocId} 
                   onDeleteRequest={handleDeleteRequest}
-                  onReIndex={() => {}} // Placeholder si no usas reindex aquí
+                  onReIndex={() => {}} 
                 />
               )}
             </div>
@@ -131,7 +165,7 @@ const Documents: React.FC = () => {
             <div className="w-1 h-10 bg-gray-600 group-hover:bg-blue-500 transition-colors rounded-full" />
         </PanelResizeHandle>
         
-        {/* Panel de Chunks (Visible si hay selección o placeholder) */}
+        {/* Panel de Chunks */}
         <Panel defaultSize={35} minSize={25} maxSize={50} className="hidden lg:block">
           <div className="bg-gray-800 p-0 h-full border border-gray-700 overflow-hidden flex flex-col">
               <ChunkPanel selectedDocId={selectedDocId} />

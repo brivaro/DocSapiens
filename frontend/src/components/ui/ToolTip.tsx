@@ -13,16 +13,16 @@ const Tooltip: React.FC<Props> = ({ text, children }) => {
       {children || <Question size={14} className="text-gray-400 cursor-help" />}
       
       {/* El tooltip que aparece al hacer hover */}
-      {/* LA CORRECCIÓN CLAVE: Añadimos z-10 para que "flote" por encima de su contenedor */}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs
-                      bg-gray-800 text-white text-xs rounded-md py-1.5 px-3
-                      opacity-0 group-hover:opacity-100 transition-opacity duration-300
-                      pointer-events-none z-10">
+      {/* FIX: Z-Index muy alto y posicionamiento ajustado */}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-[200px]
+                      bg-gray-900 text-gray-200 text-xs rounded-lg py-2 px-3
+                      opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                      pointer-events-none z-[9999] shadow-xl border border-gray-700 text-center leading-relaxed">
         {text}
-        {/* MEJORA VISUAL: Añadimos una flecha con bordes de CSS */}
+        {/* Flecha */}
         <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 
                        border-x-4 border-x-transparent 
-                       border-t-4 border-t-gray-800">
+                       border-t-4 border-t-gray-700">
         </div>
       </div>
     </div>

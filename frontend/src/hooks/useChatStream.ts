@@ -2,12 +2,16 @@ import { useState, useCallback, useRef } from 'react';
 import { API_BASE_URL } from '../api/client';
 import { Message, ChatRequestParams, Chunk } from '../types/chat';
 import { useAppToast } from './useAppToast';
+import { useSaveChatHistory } from './useChatHistory';
 
 export const useChatStream = () => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const abortControllerRef = useRef<AbortController | null>(null);
     const toast = useAppToast();
+    
+    // Hook para guardar historial
+    const { mutate: saveHistory } = useSaveChatHistory();
 
     const addMessage = useCallback((msg: Message) => {
         setMessages(prev => [...prev, msg]);
@@ -32,10 +36,14 @@ export const useChatStream = () => {
 
         abortControllerRef.current = new AbortController();
 
+        // Variables para acumular la respuesta completa y poder guardarla al final
+        let fullAnswer = "";
+        let collectedChunks: Chunk[] = [];
+
         try {
-            // 3. Iniciar Petición Fetch (No usamos axios para streaming fácil)
-            // Nota: API_BASE_URL puede ser relativa (/api) o absoluta.
-            const fetchUrl = `${API_BASE_URL.replace(/\/$/, '')}/v1/chat/stream`;
+            // 3. Iniciar Petición Fetch
+            const baseUrl = API_BASE_URL;
+            const fetchUrl = `${baseUrl.replace(/\/$/, '')}/v1/chat/stream`;
             
             const response = await fetch(fetchUrl, {
                 method: 'POST',
@@ -73,6 +81,7 @@ export const useChatStream = () => {
                         if (dataPart) {
                             try {
                                 const sources: Chunk[] = JSON.parse(dataPart);
+                                collectedChunks = sources; // Guardamos para el historial
                                 setMessages(prev => prev.map(m => 
                                     m.id === assistantMsgId ? { ...m, chunks: sources } : m
                                 ));
@@ -86,11 +95,13 @@ export const useChatStream = () => {
                             try {
                                 // El backend envía el token como string JSON (ej: "Hola") para escapar caracteres
                                 const token = JSON.parse(dataPart); 
+                                fullAnswer += token; // Acumulamos respuesta
                                 setMessages(prev => prev.map(m => 
                                     m.id === assistantMsgId ? { ...m, content: m.content + token } : m
                                 ));
                             } catch {
                                 // Fallback si no es JSON válido (texto plano)
+                                fullAnswer += dataPart; // Acumulamos respuesta
                                 setMessages(prev => prev.map(m => 
                                     m.id === assistantMsgId ? { ...m, content: m.content + dataPart } : m
                                 ));
@@ -102,6 +113,15 @@ export const useChatStream = () => {
                         throw new Error(dataPart || "Stream error");
                     }
                 }
+            }
+
+            // 5. Guardar en Historial al finalizar con éxito
+            if (fullAnswer && !abortControllerRef.current?.signal.aborted) {
+                saveHistory({
+                    question: params.question,
+                    answer: fullAnswer,
+                    chunks: collectedChunks
+                });
             }
 
         } catch (error: any) {

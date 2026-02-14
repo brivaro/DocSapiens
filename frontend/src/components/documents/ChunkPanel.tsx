@@ -1,11 +1,14 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
-import { CircleNotch, Cube, Eye, Star, WarningCircle, Hash } from 'phosphor-react';
+import { CircleNotch, Cube, Eye, WarningCircle, Hash } from 'phosphor-react';
 
 interface Chunk {
   text: string;
   chunk_id: number;
+  document_id: string;
+  start: number;
+  end: number;
 }
 
 const fetchChunks = async (docId: string): Promise<Chunk[]> => {
@@ -85,16 +88,15 @@ const ChunkPanel: React.FC<Props> = ({ selectedDocId }) => {
                     <span className="text-[10px] font-bold font-mono text-blue-300 bg-blue-900/30 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
                         <Hash size={10} /> {chunk.chunk_id}
                     </span>
+                    <span className="text-[10px] text-gray-500 font-mono">
+                        {chunk.start} - {chunk.end}
+                    </span>
                 </div>
-                {/* Placeholder para futuras acciones por chunk */}
-                <button className="text-gray-600 hover:text-yellow-400 transition-colors opacity-0 group-hover:opacity-100">
-                  <Star size={14} weight="fill" />
-                </button>
               </div>
               
-              {/* CORRECCIÓN VISUAL PRINCIPAL: */}
-              <div className="text-sm text-gray-300 font-mono bg-gray-900/50 p-2 rounded border border-gray-700/30 whitespace-pre-wrap break-words leading-relaxed">
-                {chunk.text}
+              {/* Contenido del texto con estilos robustos */}
+              <div className="text-sm text-gray-300 font-mono bg-gray-900/50 p-3 rounded border border-gray-700/30 whitespace-pre-wrap break-words leading-relaxed select-text">
+                {chunk.text || <span className="text-gray-500 italic">Sin texto disponible...</span>}
               </div>
             </div>
           ))}

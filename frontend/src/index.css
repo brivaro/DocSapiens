@@ -2,112 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
-  /* Mantiene el track del scrollbar siempre visible, evitando saltos de layout */
-  overflow-y: scroll;
+/* FIX: Prevenir scroll en el body, lo manejará el layout */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background-color: #111827; /* gray-900 */
 }
 
-body {
-  /* Un fondo global un poco más oscuro que el blanco puro de los componentes */
-  background-color: #f8fafc; /* slate-50 en Tailwind */
-}
-
-@keyframes subtle-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); /* Tailwind's blue-500 */
+@layer utilities {
+  /* Scrollbar Fino y Elegante */
+  .scrollbar-thin {
+    scrollbar-width: thin;
   }
-  70% {
-    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
-}
-
-.animate-subtle-pulse {
-  animation: subtle-pulse 2.5s infinite;
-}
-
-/* --- Animación de Escritura (Typing) --- */
-@keyframes typing {
-  from { width: 0 }
-  to { width: 100% }
-}
-
-/* --- Animación del Cursor Parpadeante (Caret) --- */
-@keyframes blink-caret {
-  from, to { border-color: transparent }
-  50% { border-color: #3B82F6; } /* Color azul de Tailwind (blue-500) */
-}
-
-.typewriter-text {
-  overflow: hidden; /* Oculta el texto que aún no se ha "escrito" */
-  border-right: .15em solid #3B82F6; /* El cursor */
-  white-space: nowrap; /* Mantiene el texto en una sola línea */
-  animation: 
-    typing 3.5s steps(40, end),
-    blink-caret .75s step-end infinite;
-}
-
-/* --- Animación de Aparición de Mensaje --- */
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+  
+  .scrollbar-track-transparent::-webkit-scrollbar-track {
+    background: transparent;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  
+  .scrollbar-thumb-gray-600::-webkit-scrollbar-thumb {
+    background-color: #4b5563; /* gray-600 */
+    border-radius: 20px;
   }
+  
+  .scrollbar-thumb-gray-600::-webkit-scrollbar-thumb:hover {
+    background-color: #6b7280; /* gray-500 */
+  }
+
+  /* Animaciones */
+  @keyframes shimmer {
+      0% { background-position: -1000px 0; }
+      100% { background-position: 1000px 0; }
+  }
+  
+  .animate-shimmer {
+      animation: shimmer 2s infinite linear;
+      background: linear-gradient(to right, #374151 4%, #4b5563 25%, #374151 36%);
+      background-size: 1000px 100%;
+  }
+
+  .typewriter-text {
+    overflow: hidden;
+    border-right: .15em solid #3B82F6;
+    white-space: nowrap;
+    animation: typing 3.5s steps(40, end), blink-caret .75s step-end infinite;
+  }
+  
+  @keyframes typing { from { width: 0 } to { width: 100% } }
+  @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: #3B82F6; } }
 }
 
-.animate-fade-in-up {
-  animation: fade-in-up 0.4s ease-out forwards;
-}
-
-/* Animación del Cursor Parpadeante (Caret) */
-@keyframes blink-caret {
-  from, to { border-color: transparent }
-  50% { border-color: #3B82F6; } /* Color azul de Tailwind (blue-500) */
-}
-
-/* Clase que aplica el efecto de cursor */
-.typing-cursor::after {
-  content: '';
-  display: inline-block;
-  width: 1px;
-  height: 1em; /* Altura del cursor igual a la del texto */
-  margin-left: 0.15em;
-  background-color: #3B82F6;
-  animation: blink-caret 1s step-end infinite;
-}
-
-
-/* Estilos base para React-Select */
-.react-select__control {
-    @apply rounded-lg border-gray-300 shadow-sm transition;
-}
-.react-select__control--is-focused {
-    @apply border-blue-500 ring-2 ring-blue-500 ring-opacity-50;
-    box-shadow: none !important;
-}
-.react-select__multi-value {
-    @apply bg-slate-100 rounded-md;
-}
-.react-select__multi-value__label {
-    /* CORRECCIÓN: Añadido el @apply que faltaba */
-    @apply text-slate-800;
-}
-.react-select__multi-value__remove {
-    @apply text-slate-500 hover:bg-red-100 hover:text-red-600;
-}
-/* Opcional: Añadir estilos para el menú desplegable */
-.react-select__menu {
-    @apply mt-1 rounded-lg shadow-lg bg-white z-10;
-}
-.react-select__option {
-    @apply px-4 py-2;
-}
-.react-select__option--is-focused {
-    @apply bg-slate-100;
-}
-.react-select__option--is-selected {
-    @apply bg-blue-500 text-white;
-}
+/* React Select Overrides */
+.react-select__control { @apply rounded-lg border-gray-600 bg-gray-800 shadow-sm transition !important; }
+.react-select__control--is-focused { @apply border-blue-500 ring-1 ring-blue-500 !important; }
+.react-select__menu { @apply bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 !important; }
+.react-select__option { @apply text-gray-300 hover:bg-gray-700 cursor-pointer !important; }
+.react-select__option--is-selected { @apply bg-blue-600 text-white !important; }
+.react-select__single-value { @apply text-white !important; }
+.react-select__input-container { @apply text-white !important; }

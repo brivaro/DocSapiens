@@ -33,11 +33,12 @@ export default function DocumentTable({ documents, onViewChunks, selectedDocId, 
     );
   }
 
+  // FIX: Scrollbar personalizado aplicado al contenedor de la tabla
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full h-full overflow-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
       <table className="w-full text-left border-collapse">
         <thead>
-            <tr className="text-gray-400 border-b border-gray-700 text-xs uppercase tracking-wider bg-gray-900/50 sticky top-0 z-10 backdrop-blur-sm">
+            <tr className="text-gray-400 border-b border-gray-700 text-xs uppercase tracking-wider bg-gray-900/90 sticky top-0 z-10 backdrop-blur-sm">
                 <th className="px-6 py-4 font-medium w-1/3">Nombre</th>
                 <th className="px-6 py-4 font-medium">Estado</th>
                 <th className="px-6 py-4 font-medium">Etiquetas</th>

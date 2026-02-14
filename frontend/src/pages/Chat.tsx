@@ -4,12 +4,14 @@ import { useVectorStores } from '../hooks/useVectorStores';
 import { ChatBubble } from '../components/chat/ChatBubble';
 import { ChatInput } from '../components/chat/ChatInput';
 import SourceChunksModal from '../components/chat/SourceChunksModal';
-import ChatSettingsPanel, { type Settings } from '../components/chat/ChatSettingsPanel';
+import ChatSettingsPanel from '../components/chat/ChatSettingsPanel';
 import ChatFiltersPanel from '../components/chat/ChatFiltersPanel';
+import ChatHistoryPanel from '../components/chat/ChatHistoryPanel';
 import WelcomePlaceholder from '../components/chat/WelcomePlaceholder';
-import { Robot, Sliders, X, CircleNotch, Database, Code, CheckCircle } from 'phosphor-react';
-import { Chunk, ChatRequestParams } from '../types/chat';
+import { Robot, Sliders, X, CircleNotch, Database, Code, CheckCircle, SidebarSimple } from 'phosphor-react';
+import { Chunk, ChatRequestParams, ChatHistoryItem } from '../types/chat';
 import { clsx } from 'clsx';
+import { Settings } from '../components/chat/ChatSettingsPanel';
 
 interface ChatFilters {
     vectorStoreId: string;
@@ -20,13 +22,13 @@ interface ChatFilters {
 }
 
 export default function Chat() {
-    const { messages, sendMessage, isLoading, stopGeneration, clearChat } = useChatStream();
+    const { messages, sendMessage, isLoading, stopGeneration, clearChat, setMessages } = useChatStream();
     const { vectorStores } = useVectorStores();
     
     // Estado local
     const [viewingChunks, setViewingChunks] = useState<Chunk[] | null>(null);
     const [showFilters, setShowFilters] = useState(false);
-    const [isSettingsCollapsed, setIsSettingsCollapsed] = useState(true);
+    const [showRightPanel, setShowRightPanel] = useState(true); // Toggle panel derecho
     
     // Configuración local del chat
     const [filters, setFilters] = useState<ChatFilters>({ 
@@ -72,18 +74,29 @@ export default function Chat() {
         sendMessage(params);
     };
 
-    // Funciones auxiliares
     const handleFiltersChange = (newFilters: Partial<ChatFilters>) => setFilters(prev => ({ ...prev, ...newFilters }));
     const handleSettingsChange = (newSettings: Partial<Settings>) => setSettings(prev => ({ ...prev, ...newSettings }));
-    const handleResumeConversation = () => { /* Implementar resume */ };
+    
+    // Resume conversación
+    const handleResumeConversation = (history: ChatHistoryItem) => {
+        const msgs = [];
+        for(let i=0; i < history.questions.length; i++) {
+            msgs.push({ id: `q-${i}`, role: 'user' as const, content: history.questions[i] });
+            msgs.push({ 
+                id: `a-${i}`, 
+                role: 'assistant' as const, 
+                content: history.answers[i],
+                chunks: history.chunks[i] 
+            });
+        }
+        setMessages(msgs);
+    };
 
     return (
         <div className="flex h-full gap-6 overflow-hidden relative">
             
-            {/* Panel Izquierdo: Filtros & Selección de Colección */}
+            {/* PANEL IZQUIERDO: Filtros & Selección de Colección */}
             <div className="hidden lg:flex w-72 flex-shrink-0 h-full flex-col gap-4">
-                
-                {/* SELECTOR DE COLECCIÓN (CRÍTICO) */}
                 <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col gap-4 shadow-lg">
                     <div>
                         <label className="flex items-center gap-2 text-sm font-bold text-white mb-2">
@@ -106,7 +119,6 @@ export default function Chat() {
                         </select>
                     </div>
 
-                    {/* TOGGLE MODO CÓDIGO */}
                     <div 
                         className={clsx(
                             "p-3 rounded-lg border flex items-center justify-between cursor-pointer transition-colors select-none",
@@ -126,13 +138,12 @@ export default function Chat() {
                     </div>
                 </div>
 
-                {/* Filtros de Documentos */}
                 <div className="flex-1 min-h-0">
                     <ChatFiltersPanel filters={filters} onFiltersChange={handleFiltersChange} />
                 </div>
             </div>
 
-            {/* Área Principal de Chat */}
+            {/* ÁREA CENTRAL: Chat */}
             <div className="flex-1 flex flex-col h-full min-w-0 bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden relative">
                 
                 {/* Header */}
@@ -157,6 +168,13 @@ export default function Chat() {
                             className={clsx("lg:hidden p-2 rounded-lg transition-colors border", showFilters ? "bg-indigo-600 border-indigo-500 text-white" : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600")}
                         >
                             <Sliders size={20} />
+                        </button>
+                        <button 
+                            onClick={() => setShowRightPanel(!showRightPanel)}
+                            className={clsx("hidden xl:block p-2 rounded-lg transition-colors border", showRightPanel ? "bg-blue-600 border-blue-500 text-white" : "bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600")}
+                            title="Alternar panel derecho"
+                        >
+                            <SidebarSimple size={20} mirrored />
                         </button>
                         
                         <button 
@@ -184,7 +202,7 @@ export default function Chat() {
                     </select>
                 </div>
 
-                {/* Overlay Bloqueante si no hay Colección */}
+                {/* Overlay Bloqueante */}
                 {!filters.vectorStoreId && messages.length === 0 && (
                     <div className="absolute inset-0 z-30 bg-gray-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-fade-in">
                         <div className="bg-gray-800 p-8 rounded-3xl border border-gray-700 shadow-2xl max-w-md w-full transform hover:scale-105 transition-transform duration-300">
@@ -196,7 +214,6 @@ export default function Chat() {
                                 Para comenzar a chatear, debes elegir qué base de conocimiento quieres utilizar.
                             </p>
                             
-                            {/* Selector duplicado para comodidad en el overlay */}
                             <div className="relative">
                                 <select 
                                     value={filters.vectorStoreId}
@@ -244,16 +261,23 @@ export default function Chat() {
                 </div>
             </div>
 
-            {/* Panel Derecho: Configuración (Desktop) */}
-            <div className="hidden xl:block flex-shrink-0">
-                 <ChatSettingsPanel 
-                    settings={settings} 
-                    onSettingsChange={handleSettingsChange} 
-                    isCollapsed={isSettingsCollapsed} 
-                    setIsCollapsed={setIsSettingsCollapsed} 
-                    onResumeConversation={handleResumeConversation}
-                />
-            </div>
+            {/* PANEL DERECHO: Split Settings / History */}
+            {showRightPanel && (
+                <div className="hidden xl:flex w-80 flex-shrink-0 h-full flex-col bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
+                    {/* Mitad Superior: Settings */}
+                    <div className="flex-1 min-h-0 flex flex-col border-b border-gray-700">
+                        <ChatSettingsPanel 
+                            settings={settings} 
+                            onSettingsChange={handleSettingsChange}
+                        />
+                    </div>
+                    
+                    {/* Mitad Inferior: Historial */}
+                    <div className="flex-1 min-h-0 flex flex-col bg-gray-900/30">
+                        <ChatHistoryPanel onResumeConversation={handleResumeConversation} />
+                    </div>
+                </div>
+            )}
 
             {/* Modales */}
             <SourceChunksModal 

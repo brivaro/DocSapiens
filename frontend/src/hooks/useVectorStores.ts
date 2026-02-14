@@ -34,7 +34,18 @@ export function useVectorStores() {
             queryClient.invalidateQueries({ queryKey: ["vectorStores"] });
         },
         onError: (err: any) => {
-            toast.error(err.response?.data?.detail || "Error al crear colección");
+            const detail = err.response?.data?.detail;
+            let errorMessage = "Error al crear colección";
+
+            if (Array.isArray(detail)) {
+                errorMessage = detail.map(e => e.msg).join(', ');
+            } else if (typeof detail === 'string') {
+                errorMessage = detail;
+            } else if (typeof detail === 'object') {
+                errorMessage = JSON.stringify(detail);
+            }
+            
+            toast.error(errorMessage);
         }
     });
 

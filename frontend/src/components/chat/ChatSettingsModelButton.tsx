@@ -36,7 +36,7 @@ const ChatSettingsButton: React.FC<Props> = ({ isCollapsed, settings, onSettings
     }
 
     return (
-        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 h-full flex flex-col gap-6 w-80 transition-all shadow-2xl z-20">
+        <div className="absolute right-20 top-4 bottom-4 w-80 bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-2xl z-50 flex flex-col gap-6 animate-fade-in">
             <div className="flex justify-between items-center border-b border-gray-700 pb-3">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Robot size={20} weight="fill" className="text-blue-500"/> Model Settings

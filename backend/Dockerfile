@@ -36,4 +36,4 @@ EXPOSE 8000
 # USER myuser
 
 # Comando de inicio
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8082", "--log-config", "/code/logging.ini"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8082", "--workers", "1", "--log-config", "/code/logging.ini"]

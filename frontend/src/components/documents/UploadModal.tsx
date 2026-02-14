@@ -41,6 +41,9 @@ const uploadDocumentApi = async (params: Omit<FileWithConfig, 'id' | 'file' | 's
     return data;
 };
 
+// ESTILO COMÚN PARA SELECTORES E INPUTS OSCUROS
+const inputBaseClass = "w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none transition-all";
+
 const FileConfigItem: React.FC<{
   item: FileWithConfig;
   vectorStores: VectorStore[] | undefined;
@@ -52,15 +55,18 @@ const FileConfigItem: React.FC<{
   
   return (
     <div className="p-3 bg-gray-700/30 border border-gray-600 rounded-lg transition-all">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 overflow-hidden">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
           {item.status === 'uploading' && <CircleNotch size={20} className="animate-spin text-blue-400 flex-shrink-0" />}
           {item.status === 'success' && <CheckCircle size={20} className="text-green-400 flex-shrink-0" />}
           {item.status === 'error' && <WarningCircle size={20} className="text-red-400 flex-shrink-0" />}
           {item.status === 'pending' && <File size={20} className="text-gray-400 flex-shrink-0" />}
-          <span className="font-medium text-sm text-white truncate">{item.filename}</span>
+          
+          <span className="font-medium text-sm text-white truncate" title={item.filename}>
+            {item.filename}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
             <button onClick={() => setShowConfig(!showConfig)} disabled={isUploading} className={clsx("p-1.5 rounded-md transition-colors", showConfig ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-600 hover:text-white")}><Gear size={18} /></button>
             <button onClick={() => onRemove(item.id)} disabled={isUploading} className="p-1.5 rounded-md text-gray-400 hover:bg-red-900/30 hover:text-red-400 disabled:text-gray-600"><Trash size={18} /></button>
         </div>
@@ -69,41 +75,49 @@ const FileConfigItem: React.FC<{
       {showConfig && (
         <div className="mt-4 pt-4 border-t border-gray-600 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
           
-          {/* SELECTOR DE COLECCIÓN (OBLIGATORIO) */}
-          <div className="md:col-span-2 bg-gray-800/50 p-3 rounded-lg border border-gray-600/50">
-            <label className="text-xs font-bold text-blue-300 block mb-1 flex items-center gap-1">
-               <Database weight="fill" /> Colección Destino *
+          {/* SELECTOR DE COLECCIÓN MEJORADO */}
+          <div className="md:col-span-2 bg-gray-900/40 p-3 rounded-lg border border-gray-700">
+            <label className="text-[11px] uppercase tracking-wider font-bold text-gray-400 block mb-2 flex items-center gap-2">
+               <Database size={14} className="text-blue-400" /> Colección Destino
             </label>
             <select 
                 value={item.vector_store_id} 
                 onChange={e => onUpdate(item.id, { vector_store_id: e.target.value })}
                 className={clsx(
-                    "w-full rounded px-2 py-2 text-sm outline-none border transition-all",
-                    !item.vector_store_id 
-                        ? "bg-red-900/20 border-red-500 text-white animate-pulse focus:animate-none" 
-                        : "bg-gray-900 border-gray-600 text-white focus:ring-1 focus:ring-blue-500"
+                    inputBaseClass,
+                    !item.vector_store_id && "border-red-500/50 bg-red-900/10 shadow-[0_0_10px_rgba(239,68,68,0.1)]"
                 )}
             >
-                <option value="">-- Selecciona una Colección --</option>
+                <option value="" className="bg-gray-900 text-gray-500">-- Selecciona una Colección --</option>
                 {vectorStores?.map(vs => (
-                    <option key={vs.id} value={vs.id}>{vs.name} ({vs.embedding_dimension}d)</option>
+                    <option key={vs.id} value={vs.id} className="bg-gray-900">
+                        {vs.name} ({vs.embedding_dimension}d)
+                    </option>
                 ))}
             </select>
-            {!item.vector_store_id && <p className="text-[10px] text-red-400 mt-1 font-medium">⚠️ Requerido: Elige dónde guardar este documento.</p>}
           </div>
 
           <div className="md:col-span-2">
             <label className="text-xs font-semibold text-gray-400 block mb-1">Nombre del Archivo</label>
-            <input type="text" value={item.filename} onChange={e => onUpdate(item.id, { filename: e.target.value })} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none" />
+            <input 
+              type="text" 
+              value={item.filename} 
+              onChange={e => onUpdate(item.id, { filename: e.target.value })} 
+              className={inputBaseClass}
+            />
           </div>
 
           <div>
             <label className="text-xs font-semibold text-gray-400 block mb-1">Modo de División</label>
-            <select value={item.split_mode} onChange={e => onUpdate(item.id, { split_mode: e.target.value as FileWithConfig['split_mode'] })} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none">
-              <option value="delimiter">Delimitador (Texto)</option>
-              <option value="whole">Todo Junto (Sin dividir)</option>
-              <option value="size">Tamaño Fijo</option>
-              <option value="pages">Por Páginas (PDF/PPT)</option>
+            <select 
+                value={item.split_mode} 
+                onChange={e => onUpdate(item.id, { split_mode: e.target.value as FileWithConfig['split_mode'] })} 
+                className={inputBaseClass}
+            >
+              <option value="delimiter" className="bg-gray-900">Delimitador (Texto)</option>
+              <option value="whole" className="bg-gray-900">Todo Junto (Sin dividir)</option>
+              <option value="size" className="bg-gray-900">Tamaño Fijo</option>
+              <option value="pages" className="bg-gray-900">Por Páginas (PDF/PPT)</option>
             </select>
           </div>
 
@@ -113,12 +127,12 @@ const FileConfigItem: React.FC<{
                  Delimitador <span className="text-gray-500 font-normal">(regex o texto)</span>
               </label>
               <div className="relative">
-                <TextT size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500"/>
+                <TextT size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"/>
                 <input 
                     type="text" 
                     value={item.split_by} 
                     onChange={e => onUpdate(item.id, { split_by: e.target.value })} 
-                    className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 pl-7 text-sm text-white font-mono focus:ring-1 focus:ring-blue-500 outline-none" 
+                    className={clsx(inputBaseClass, "pl-9 font-mono")}
                     placeholder="\n\n"
                 />
               </div>
@@ -129,18 +143,34 @@ const FileConfigItem: React.FC<{
             <>
               <div>
                 <label className="text-xs font-semibold text-gray-400 block mb-1">Tamaño Chunk</label>
-                <input type="number" value={item.chunk_size} onChange={e => onUpdate(item.id, { chunk_size: parseInt(e.target.value) })} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none" />
+                <input 
+                    type="number" 
+                    value={item.chunk_size} 
+                    onChange={e => onUpdate(item.id, { chunk_size: parseInt(e.target.value) })} 
+                    className={inputBaseClass}
+                />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-400 block mb-1">Solapamiento</label>
-                <input type="number" value={item.overlap} onChange={e => onUpdate(item.id, { overlap: parseInt(e.target.value) })} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none" />
+                <input 
+                    type="number" 
+                    value={item.overlap} 
+                    onChange={e => onUpdate(item.id, { overlap: parseInt(e.target.value) })} 
+                    className={inputBaseClass} 
+                />
               </div>
             </>
           )}
 
           <div className="md:col-span-2">
             <label className="text-xs font-semibold text-gray-400 block mb-1">Etiquetas (separadas por comas)</label>
-            <input type="text" value={item.tags} onChange={e => onUpdate(item.id, { tags: e.target.value })} className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none" placeholder="urgente, finanzas, Q1..." />
+            <input 
+                type="text" 
+                value={item.tags} 
+                onChange={e => onUpdate(item.id, { tags: e.target.value })} 
+                className={inputBaseClass} 
+                placeholder="urgente, finanzas, Q1..." 
+            />
           </div>
         </div>
       )}
@@ -159,7 +189,7 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       id: `${file.name}-${Date.now()}`,
       file,
       filename: file.name,
-      vector_store_id: '', // Inicialmente vacío, usuario debe elegir
+      vector_store_id: '',
       tags: '',
       split_mode: 'delimiter',
       split_by: '\\n\\n',
@@ -192,13 +222,11 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   });
 
   const handleUploadAll = async () => {
-    // Validar que todos tengan vector_store_id
     if (files.some(f => !f.vector_store_id)) {
         alert("Por favor selecciona una colección de destino para todos los archivos.");
         return;
     }
 
-    // Procesar uno a uno (o Promise.all si prefieres paralelo)
     for (const fileConfig of files) {
         if (fileConfig.status !== 'pending') continue;
         
@@ -214,7 +242,6 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }
     }
     
-    // Si todos ok, cerrar tras un breve delay o dejar abierto para ver errores
     if (files.every(f => f.status === 'success')) {
         setTimeout(onClose, 1000);
     }
