@@ -24,7 +24,7 @@ interface ChatFilters {
 }
 
 export default function Chat() {
-    const { messages, sendMessage, isLoading, stopGeneration, clearChat, setMessages } = useChatStream();
+    const { messages, sendMessage, isLoading, stopGeneration, clearChat, setMessages, setCurrentHistoryId } = useChatStream();
     const { vectorStores } = useVectorStores();
     
     // --- ESTADOS DE UI ---
@@ -47,10 +47,10 @@ export default function Chat() {
     const [settings, setSettings] = useState<Settings>({ 
         model: 'gemini-2.0-flash',
         system_instruction: 'Eres un asistente útil y preciso. Responde basándote estrictamente en el contexto proporcionado.', 
-        temperature: 0.7, 
+        temperature: 1, 
         top_k: 40, 
         max_output_tokens: 2000, 
-        thinking_budget: 0 
+        thinking_budget: 0
     });
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -84,6 +84,10 @@ export default function Chat() {
     const handleSettingsChange = (newSettings: Partial<Settings>) => setSettings(prev => ({ ...prev, ...newSettings }));
     
     const handleResumeConversation = (history: ChatHistoryItem) => {
+        // 1. Establecemos el ID activo para que los siguientes mensajes se añadan a este
+        setCurrentHistoryId(history.id);
+
+        // 2. Reconstruimos el chat visualmente
         const msgs = [];
         for(let i=0; i < history.questions.length; i++) {
             msgs.push({ id: `q-${i}`, role: 'user' as const, content: history.questions[i] });

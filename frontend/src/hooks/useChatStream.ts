@@ -1,16 +1,21 @@
 import { useState, useCallback, useRef } from 'react';
 import { Message, ChatRequestParams, Chunk } from '../types/chat';
 import { useAppToast } from './useAppToast';
-import { useSaveChatHistory } from './useChatHistory';
+import { useSaveChatHistory, useUpdateChatHistory } from './useChatHistory';
 
 export const useChatStream = () => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Estado para saber si estamos en una conversación existente
+    const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
+    
     const abortControllerRef = useRef<AbortController | null>(null);
     const toast = useAppToast();
     
-    // Hook para guardar historial
-    const { mutate: saveHistory } = useSaveChatHistory();
+    // Hooks de mutación (Usamos mutateAsync para esperar la respuesta)
+    const { mutateAsync: saveHistory } = useSaveChatHistory();
+    const { mutateAsync: updateHistory } = useUpdateChatHistory();
 
     const addMessage = useCallback((msg: Message) => {
         setMessages(prev => [...prev, msg]);
@@ -19,11 +24,9 @@ export const useChatStream = () => {
     const sendMessage = async (params: ChatRequestParams) => {
         if (isLoading) return;
 
-        // 1. Añadir mensaje de usuario
         const userMsgId = Date.now().toString();
         addMessage({ id: userMsgId, role: 'user', content: params.question });
 
-        // 2. Preparar mensaje del asistente (vacío inicialmente)
         const assistantMsgId = (Date.now() + 1).toString();
         setIsLoading(true);
         addMessage({ 
@@ -35,7 +38,6 @@ export const useChatStream = () => {
 
         abortControllerRef.current = new AbortController();
 
-        // Variables para acumular la respuesta completa y poder guardarla al final
         let fullAnswer = "";
         let collectedChunks: Chunk[] = [];
 
@@ -53,7 +55,6 @@ export const useChatStream = () => {
             if (!response.ok) throw new Error(response.statusText);
             if (!response.body) throw new Error("No response body");
 
-            // 4. Leer el Stream
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
             let buffer = "";
@@ -65,21 +66,19 @@ export const useChatStream = () => {
                 const chunk = decoder.decode(value, { stream: true });
                 buffer += chunk;
                 
-                // Procesar eventos SSE (data: ...)
                 const lines = buffer.split("\n\n");
-                buffer = lines.pop() || ""; // Guardar el remanente incompleto
+                buffer = lines.pop() || ""; 
 
                 for (const line of lines) {
                     const trimmed = line.trim();
                     if (!trimmed) continue;
 
                     if (trimmed.startsWith("event: sources")) {
-                        // Evento de Fuentes
                         const dataPart = line.split("data: ")[1];
                         if (dataPart) {
                             try {
                                 const sources: Chunk[] = JSON.parse(dataPart);
-                                collectedChunks = sources; // Guardamos para el historial
+                                collectedChunks = sources;
                                 setMessages(prev => prev.map(m => 
                                     m.id === assistantMsgId ? { ...m, chunks: sources } : m
                                 ));
@@ -87,19 +86,16 @@ export const useChatStream = () => {
                         }
                     } 
                     else if (trimmed.startsWith("event: token")) {
-                        // Evento de Token de texto
                         const dataPart = line.split("data: ")[1];
                         if (dataPart) {
                             try {
-                                // El backend envía el token como string JSON (ej: "Hola") para escapar caracteres
                                 const token = JSON.parse(dataPart); 
-                                fullAnswer += token; // Acumulamos respuesta
+                                fullAnswer += token; 
                                 setMessages(prev => prev.map(m => 
                                     m.id === assistantMsgId ? { ...m, content: m.content + token } : m
                                 ));
                             } catch {
-                                // Fallback si no es JSON válido (texto plano)
-                                fullAnswer += dataPart; // Acumulamos respuesta
+                                fullAnswer += dataPart;
                                 setMessages(prev => prev.map(m => 
                                     m.id === assistantMsgId ? { ...m, content: m.content + dataPart } : m
                                 ));
@@ -113,13 +109,25 @@ export const useChatStream = () => {
                 }
             }
 
-            // 5. Guardar en Historial al finalizar con éxito
             if (fullAnswer && !abortControllerRef.current?.signal.aborted) {
-                saveHistory({
+                const historyData = {
                     question: params.question,
                     answer: fullAnswer,
                     chunks: collectedChunks
-                });
+                };
+
+                if (currentHistoryId) {
+                    // Si ya tenemos ID, ACTUALIZAMOS (PUT)
+                    console.log("Actualizando historial existente:", currentHistoryId);
+                    await updateHistory({ id: currentHistoryId, ...historyData });
+                } else {
+                    // Si no, CREAMOS (POST) y guardamos el ID nuevo
+                    console.log("Creando nuevo historial");
+                    const newHistory = await saveHistory(historyData);
+                    if (newHistory && newHistory.id) {
+                        setCurrentHistoryId(newHistory.id);
+                    }
+                }
             }
 
         } catch (error: any) {
@@ -151,8 +159,18 @@ export const useChatStream = () => {
 
     const clearChat = () => {
         setMessages([]);
+        setCurrentHistoryId(null); // Importante: Reseteamos el ID al limpiar
         abortControllerRef.current = null;
     };
 
-    return { messages, sendMessage, isLoading, stopGeneration, clearChat, setMessages };
+    // Exportamos setCurrentHistoryId para poder usarlo al recuperar historial desde el sidebar
+    return { 
+        messages, 
+        sendMessage, 
+        isLoading, 
+        stopGeneration, 
+        clearChat, 
+        setMessages, 
+        setCurrentHistoryId 
+    };
 };

@@ -227,14 +227,23 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         return;
     }
 
+    // Flag local para rastrear errores en ESTA ejecución
+    // React state es asíncrono, no podemos confiar en 'files' dentro del loop para la comprobación final
+    let hasErrors = false;
+
     for (const fileConfig of files) {
-        if (fileConfig.status !== 'pending') continue;
+        // Ignoramos los que ya tuvieron éxito
+        if (fileConfig.status === 'success') continue;
         
+        // Si queremos reintentar errores previos, permitimos que pase, si no, descomentar siguiente línea:
+        // if (fileConfig.status !== 'pending' && fileConfig.status !== 'error') continue;
+
         updateFileConfig(fileConfig.id, { status: 'uploading' });
         try {
             await uploadFile(fileConfig);
             updateFileConfig(fileConfig.id, { status: 'success' });
         } catch (error: any) {
+            hasErrors = true; // Hubo un error, marcamos bandera local
             updateFileConfig(fileConfig.id, { 
                 status: 'error', 
                 error: error.response?.data?.detail || "Error subiendo archivo" 
@@ -242,7 +251,7 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }
     }
     
-    if (files.every(f => f.status === 'success')) {
+    if (!hasErrors) {
         setTimeout(onClose, 1000);
     }
   };
