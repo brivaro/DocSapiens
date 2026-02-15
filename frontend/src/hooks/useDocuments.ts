@@ -5,8 +5,12 @@ import { useAppToast } from "./useAppToast";
 
 // --- API Calls ---
 
-const fetchDocumentsApi = async (): Promise<ApiDocument[]> => {
-  const { data } = await apiClient.get("/api/v1/documents/");
+const fetchDocumentsApi = async (vectorStoreId?: string): Promise<ApiDocument[]> => {
+  const url = (vectorStoreId && vectorStoreId !== "undefined")
+    ? `/api/v1/documents/?vector_store_id=${vectorStoreId}`
+    : "/api/v1/documents/";
+    
+  const { data } = await apiClient.get(url);
   return data;
 };
 
@@ -18,13 +22,16 @@ const uploadDocumentApi = async (params: UploadParams): Promise<ApiDocument> => 
   const formData = new FormData();
   formData.append("file", params.file);
   formData.append("split_mode", params.split_mode);
-  // Solo enviar delimitador si aplica
+  
   if (params.split_mode === 'delimiter') {
       formData.append("split_by", params.split_by.replace(/\\n/g, '\n'));
   }
   if (params.chunk_size) formData.append("chunk_size", params.chunk_size.toString());
   if (params.overlap) formData.append("overlap", params.overlap.toString());
   if (params.tags) formData.append("tags", params.tags);
+  if ('vector_store_id' in params) {
+     formData.append("vector_store_id", (params as any).vector_store_id);
+  }
 
   const { data } = await apiClient.post("/api/v1/documents/upload/", formData, { 
     headers: { "Content-Type": "multipart/form-data" },
@@ -34,7 +41,6 @@ const uploadDocumentApi = async (params: UploadParams): Promise<ApiDocument> => 
 
 const reIndexDocumentApi = async (params: ReIndexParams) => {
     const { docId, ...payload } = params;
-    // Ajustar split_by si es delimiter
     if (payload.split_mode === 'delimiter') {
         payload.split_by = payload.split_by.replace(/\\n/g, '\n');
     }
@@ -44,14 +50,12 @@ const reIndexDocumentApi = async (params: ReIndexParams) => {
 
 // --- Hook ---
 
-export function useDocuments() {
+export function useDocuments(vectorStoreId?: string) {
     const queryClient = useQueryClient();
     const toast = useAppToast();
-
     const { data: documents, isLoading, error } = useQuery<ApiDocument[]>({
-        queryKey: ["documents"],
-        queryFn: fetchDocumentsApi,
-        // Polling inteligente: solo si hay docs procesando
+        queryKey: ["documents", vectorStoreId], 
+        queryFn: () => fetchDocumentsApi(vectorStoreId),
         refetchInterval: (query) => {
             const data = query.state.data;
             const isProcessing = data?.some(doc => doc.status === 'processing' || doc.status === 'pending');
@@ -75,7 +79,6 @@ export function useDocuments() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["documents"] });
         }
-        // No ponemos toast aquí para manejarlo en el modal y poder cerrar
     });
 
     const { mutateAsync: reIndexDocument } = useMutation({

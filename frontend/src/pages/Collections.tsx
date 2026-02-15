@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useVectorStores } from '../hooks/useVectorStores';
 import { Plus, Trash, Database, Books, Cube } from 'phosphor-react';
 import SkeletonLoader from '../components/common/SkeletonLoader';
+import { useAppToast } from '../hooks/useAppToast';
 
 const DIMENSIONS = [128, 256, 512, 768, 1536, 2048, 3072];
 
@@ -11,6 +12,7 @@ export default function Collections() {
     const [name, setName] = useState('');
     const [desc, setDesc] = useState('');
     const [dim, setDim] = useState(768);
+    const toast = useAppToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -102,7 +104,7 @@ export default function Collections() {
                         <div key={store.id} className="bg-gray-800 border border-gray-700 rounded-2xl p-6 hover:border-blue-500/30 transition-all group relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                                 <button 
-                                    onClick={() => { if(confirm('¿Seguro? Se borrarán todos los documentos asociados.')) deleteVectorStore(store.id) }}
+                                    onClick={() => { toast.success("Colección eliminada"); deleteVectorStore(store.id) }}
                                     className="p-2 bg-red-900/20 text-red-400 rounded-lg hover:bg-red-600 hover:text-white transition-colors"
                                 >
                                     <Trash size={18} />

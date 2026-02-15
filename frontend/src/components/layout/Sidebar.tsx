@@ -7,9 +7,9 @@ import {
 
 const navItems = [
   { name: 'Dashboard', path: '/dashboard', icon: House },
+  { name: 'Colecciones', path: '/collections', icon: Books },
   { name: 'Documentos', path: '/documents', icon: FileText },
   { name: 'Chat IA', path: '/chat', icon: ChatCircleDots },
-  { name: 'Colecciones', path: '/collections', icon: Books },
 ];
 interface SidebarProps {
   isCollapsed: boolean;

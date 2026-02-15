@@ -6,6 +6,7 @@ import { Funnel, Tag, Stack, Bookmarks } from 'phosphor-react';
 type SelectOption = { value: string; label: string };
 
 interface Filters {
+    vectorStoreId: string;
     documentIds: string[];
     tags: string[];
     k: number;
@@ -45,7 +46,7 @@ const selectStyles = {
 };
 
 const ChatFiltersPanel: React.FC<Props> = ({ filters, onFiltersChange }) => {
-    const { documents: apiDocuments = [] } = useDocuments();
+    const { documents: apiDocuments = [] } = useDocuments(filters.vectorStoreId);
 
     const documentOptions: SelectOption[] = apiDocuments.map(doc => ({
         value: doc.id,

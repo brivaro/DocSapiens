@@ -100,6 +100,7 @@ def fetch_chunks_by_document_id(collection_name: str, doc_id: str, limit: int = 
             # LOG DE DEBUG (Solo el primero para no saturar)
             if i == 0:
                 logging.info(f"[QDRANT DEBUG] Payload del primer chunk: {payload.keys()}")
+                logging.info(f"[QDRANT DEBUG] Payload del primer chunk: {payload.values()}")
 
             # Extracción robusta con logs de error si falta texto
             text_val = str(payload.get("text", ""))

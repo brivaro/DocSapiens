@@ -1,7 +1,7 @@
 import logging
 from typing import List
 from app.processing.extractor import _get_file_type
-import io, fitz, pandas as pd, pptx
+import io, fitz, pandas as pd, pptx, docx
 from app.models.document import DocumentChunk, DocumentCreate
 
 def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[DocumentChunk]:
@@ -76,12 +76,39 @@ def _split_text(text: str, doc_id: str, doc_model: DocumentCreate) -> List[Docum
                             idx += 1
                     return chunks
                 
+                # Caso 4: Word (cada sección es un chunk)
+                elif file_type == "docx":
+                    docx_file = io.BytesIO(raw_content)
+                    doc = docx.Document(docx_file)
+                    
+                    current_page_text = []
+                    page_num = 0
+
+                    for para in doc.paragraphs:
+                        rendered_page_break = 'w:br' in para._element.xml and 'type="page"' in para._element.xml
+                        
+                        if rendered_page_break and current_page_text:
+                            full_text = "\n".join(current_page_text)
+                            if full_text.strip():
+                                chunks.append(create_chunk_to_list(doc_id, idx, full_text, 0, 0, split_mode, file_type, page_num))
+                                idx += 1
+                                page_num += 1
+                            current_page_text = []
+
+                        current_page_text.append(para.text)
+
+                    if current_page_text:
+                        full_text = "\n".join(current_page_text)
+                        if full_text.strip():
+                            chunks.append(create_chunk_to_list(doc_id, idx, full_text, 0, 0, split_mode, file_type, page_num))
+                    
+                    return chunks
+
                 else:
-                    logging.info(f"[WARNING] No se puede dividir por páginas para el tipo '{file_type}'. Se usará el modo delimitador.")
-                    # Fallback continúa abajo
+                    logging.info(f"[WARNING] No se puede dividir por páginas para '{file_type}'. Se usará delimitador.")
+                
             except Exception as e:
                 logging.info(f"[ERROR] Error al dividir por páginas: {e}. Se usará el modo delimitador.")
-                # Fallback continúa abajo
 
         # --- MODO 3: TAMAÑO FIJO ---
         if split_mode == "size" and chunk_size and chunk_size > 0:
@@ -159,6 +186,9 @@ def create_chunk_to_list(
             text = f"Página {page_num + 1}:\n{text}"
         elif file_type in ["xlsx", "xls"]:
             text = f"Hoja: {page_name}\n{text}"
-        elif file_type == "pptx":
+        elif file_type in ["pptx", "ppt"]:
             text = f"Diapositiva {page_num + 1}:\n{text}"
+        elif file_type == "docx":
+            text = f"Sección/Página {page_num + 1}:\n{text}"
+            
     return DocumentChunk(document_id=doc_id, chunk_id=idx, text=text, start=start, end=end)

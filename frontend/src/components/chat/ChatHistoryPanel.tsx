@@ -2,6 +2,7 @@ import React from 'react';
 import { Notebook, X, ChatCircleDots, Trash } from 'phosphor-react';
 import type { ChatHistoryItem } from '../../types/chat';
 import { useChatHistory, useDeleteChatHistory } from '../../hooks/useChatHistory';
+import { useAppToast } from '../../hooks/useAppToast';
 
 interface Props {
     isCollapsed: boolean;
@@ -11,6 +12,7 @@ interface Props {
 const ChatHistoryPanel: React.FC<Props> = ({ isCollapsed, onResumeConversation }) => {
     const { data, isLoading } = useChatHistory();
     const { mutate: deleteHistory } = useDeleteChatHistory();
+    const toast = useAppToast();
 
     const handleResume = (item: ChatHistoryItem) => {
         if (onResumeConversation) onResumeConversation(item);
@@ -18,14 +20,13 @@ const ChatHistoryPanel: React.FC<Props> = ({ isCollapsed, onResumeConversation }
 
     const handleDelete = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        if (confirm("¿Estás seguro de que quieres eliminar esta conversación?")) {
-            deleteHistory(id);
-        }
+        deleteHistory(id);
+        toast.success("Conversación eliminada");
     };
 
     // Panel desplegado (Estilo Oscuro)
     return (
-        <div className="bg-gray-800 p-4 h-full flex flex-col gap-4 w-80 transition-all shadow-2xl z-50 animate-fade-in">
+        <div className="bg-gray-800 p-4 h-full w-full flex flex-col gap-4 transition-all shadow-2xl z-50 animate-fade-in">
             <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                 {isLoading ? (
                     <div className="flex justify-center py-4">

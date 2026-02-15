@@ -7,6 +7,7 @@ import { clsx } from 'clsx';
 import { Portal } from '../common/Portal';
 import { useVectorStores } from '../../hooks/useVectorStores';
 import { VectorStore } from '../../types/vectorStore';
+import { useAppToast } from '../../hooks/useAppToast';
 
 interface FileWithConfig {
   id: string;
@@ -49,7 +50,7 @@ const getAllowedSplitModes = (filename: string) => {
         { value: "size", label: "Tamaño Fijo" }
     ];
     
-    if (ext === 'pdf' || ext === 'pptx' || ext === 'ppt') {
+    if (ext === 'pdf' || ext === 'pptx' || ext === 'ppt' || ext === 'docx' || ext === 'doc') {
         modes.push({ value: "pages", label: "Por Páginas/Diapositivas" });
     }
     
@@ -204,6 +205,7 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [files, setFiles] = useState<FileWithConfig[]>([]);
   const queryClient = useQueryClient();
   const { vectorStores } = useVectorStores();
+  const toast = useAppToast();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles: FileWithConfig[] = acceptedFiles.map(file => ({
@@ -244,7 +246,8 @@ const UploadModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const handleUploadAll = async () => {
     if (files.some(f => !f.vector_store_id)) {
-        alert("Por favor selecciona una colección de destino para todos los archivos.");
+        //alert("Por favor selecciona una colección de destino para todos los archivos.");
+        toast.info("Selecciona una colección de destino para todos los archivos.");
         return;
     }
 
