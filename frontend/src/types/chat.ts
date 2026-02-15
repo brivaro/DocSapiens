@@ -32,7 +32,6 @@ export interface ChatRequestParams {
   thinking_budget?: number;
 }
 
-// Interfaz para la respuesta completa del historial (GET)
 export interface ChatHistoryItem {
   id: string;
   questions: string[];
@@ -40,7 +39,6 @@ export interface ChatHistoryItem {
   chunks: Chunk[][];
 }
 
-// NUEVA: Interfaz para CREAR una entrada en el historial (POST)
 export interface ChatHistoryCreate {
     question: string;
     answer: string;

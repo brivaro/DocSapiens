@@ -27,7 +27,7 @@ export const useSaveChatHistory = () => {
   });
 };
 
-// --- NUEVO: Actualizar conversación existente (PUT) ---
+// Actualizar conversación existente (PUT) ---
 export const useUpdateChatHistory = () => {
     const queryClient = useQueryClient();
     return useMutation({

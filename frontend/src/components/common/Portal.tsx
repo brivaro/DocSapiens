@@ -10,7 +10,6 @@ export function Portal({ children }: PortalProps) {
 
     useEffect(() => {
         setMounted(true);
-        // Busca el elemento del DOM que creamos en index.html
         const modalRoot = document.getElementById('modal-root');
         if (!modalRoot) {
             console.error("The element #modal-root was not found");
@@ -20,9 +19,6 @@ export function Portal({ children }: PortalProps) {
         return () => setMounted(false);
     }, []);
 
-    // createPortal toma dos argumentos: 
-    // 1. El JSX que quieres renderizar (children)
-    // 2. El nodo del DOM donde lo quieres renderizar
     return mounted
         ? createPortal(children, document.getElementById('modal-root')!)
         : null;

@@ -6,7 +6,6 @@ interface HeaderProps {
 }
 
 function Header({ isSidebarCollapsed, toggleSidebar }: HeaderProps) {
-    // Ya no necesitamos leer la config aquí para mostrarla
     return (
         <header className="bg-gray-800/90 backdrop-blur-md p-4 flex justify-between items-center border-b border-gray-700 h-16 transition-all duration-300 sticky top-0 z-30">
           <div className="flex items-center gap-4">

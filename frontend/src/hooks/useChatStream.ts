@@ -42,7 +42,6 @@ export const useChatStream = () => {
         let collectedChunks: Chunk[] = [];
 
         try {
-            // 3. Iniciar Petición Fetch
             const fetchUrl = `/api/v1/chat/stream`;
             
             const response = await fetch(fetchUrl, {

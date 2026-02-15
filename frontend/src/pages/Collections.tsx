@@ -8,8 +8,6 @@ const DIMENSIONS = [128, 256, 512, 768, 1536, 2048, 3072];
 export default function Collections() {
     const { vectorStores, isLoading, createVectorStore, deleteVectorStore } = useVectorStores();
     const [isCreating, setIsCreating] = useState(false);
-    
-    // Form State
     const [name, setName] = useState('');
     const [desc, setDesc] = useState('');
     const [dim, setDim] = useState(768);

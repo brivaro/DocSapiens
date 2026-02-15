@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, ArrowsClockwise, FileText, Scissors } from 'phosphor-react';
-import { ApiDocument } from '../../hooks/useDocuments';
+import type { ApiDocument } from '../../types/document';
 import clsx from 'clsx';
 
 interface Props {

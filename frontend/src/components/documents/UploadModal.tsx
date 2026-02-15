@@ -41,7 +41,6 @@ const uploadDocumentApi = async (params: Omit<FileWithConfig, 'id' | 'file' | 's
     return data;
 };
 
-// ESTILO COMÚN PARA SELECTORES E INPUTS OSCUROS
 const inputBaseClass = "w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none transition-all";
 
 const FileConfigItem: React.FC<{
@@ -75,7 +74,7 @@ const FileConfigItem: React.FC<{
       {showConfig && (
         <div className="mt-4 pt-4 border-t border-gray-600 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
           
-          {/* SELECTOR DE COLECCIÓN MEJORADO */}
+          {/* SELECTOR DE COLECCIÓN */}
           <div className="md:col-span-2 bg-gray-900/40 p-3 rounded-lg border border-gray-700">
             <label className="text-[11px] uppercase tracking-wider font-bold text-gray-400 block mb-2 flex items-center gap-2">
                <Database size={14} className="text-blue-400" /> Colección Destino

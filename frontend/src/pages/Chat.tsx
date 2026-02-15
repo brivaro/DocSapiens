@@ -84,10 +84,8 @@ export default function Chat() {
     const handleSettingsChange = (newSettings: Partial<Settings>) => setSettings(prev => ({ ...prev, ...newSettings }));
     
     const handleResumeConversation = (history: ChatHistoryItem) => {
-        // 1. Establecemos el ID activo para que los siguientes mensajes se añadan a este
         setCurrentHistoryId(history.id);
 
-        // 2. Reconstruimos el chat visualmente
         const msgs = [];
         for(let i=0; i < history.questions.length; i++) {
             msgs.push({ id: `q-${i}`, role: 'user' as const, content: history.questions[i] });
@@ -104,7 +102,7 @@ export default function Chat() {
     return (
         <div className="flex h-full overflow-hidden relative bg-gray-900">
             
-            {/* 1. PANEL IZQUIERDO (FILTROS) - Animación eliminada, solo transición de ancho */}
+            {/* 1. PANEL IZQUIERDO (FILTROS) */}
             <div className={clsx(
                 "flex-shrink-0 h-full flex flex-col gap-4 transition-all duration-300 ease-in-out border-r border-gray-800 bg-gray-900/50",
                 showLeftPanel ? "w-72 p-4 translate-x-0 opacity-100" : "w-0 p-0 -translate-x-4 opacity-0 overflow-hidden border-none"
@@ -115,7 +113,6 @@ export default function Chat() {
                         <label className="flex items-center gap-2 text-sm font-bold text-white mb-2">
                             <Database size={20} className="text-blue-400" weight="fill"/> Colección Activa
                         </label>
-                        {/* CORRECCIÓN: Estilo consistente con ChatSettingsPanel */}
                         <select 
                             value={filters.vectorStoreId}
                             onChange={e => setFilters(p => ({...p, vectorStoreId: e.target.value}))}
@@ -205,7 +202,6 @@ export default function Chat() {
                     </button>
                 </div>
 
-                {/* Overlay si no hay colección (sin animaciones de entrada exageradas) */}
                 {!filters.vectorStoreId && messages.length === 0 && (
                     <div className="absolute inset-0 z-20 bg-gray-900/80 backdrop-blur-[2px] flex flex-col items-center justify-center p-6">
                         <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 shadow-2xl max-w-md text-center">
@@ -254,7 +250,7 @@ export default function Chat() {
                 </div>
             </div>
 
-            {/* 3. PANELES DERECHOS (DINÁMICOS) - Sin animación slide-in */}
+            {/* 3. PANELES DERECHOS (DINÁMICOS) */}
             {(showSettingsPanel || showHistoryPanel) && (
                 <div className="w-80 flex-shrink-0 flex flex-col h-full bg-gray-800 border-l border-gray-700 transition-all duration-300 shadow-xl z-20">
                     
@@ -342,7 +338,6 @@ export default function Chat() {
     );
 }
 
-// Componente helper para tooltips laterales
 const TooltipSide = ({ text, children }: { text: string, children: React.ReactNode }) => (
     <div className="group relative flex items-center">
         {children}

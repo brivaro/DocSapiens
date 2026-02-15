@@ -24,7 +24,7 @@ const selectStyles = {
         ...base, 
         backgroundColor: '#1f2937', 
         border: '1px solid #374151',
-        zIndex: 9999 // Asegurar visibilidad
+        zIndex: 9999
     }),
     menuPortal: (base: any) => ({ 
         ...base, 

@@ -48,7 +48,7 @@ const ChatSettingsPanel: React.FC<Props> = ({ settings, onSettingsChange }) => {
                     Max Tokens <Tooltip text="Límite de respuesta" />
                     <span className="ml-auto font-bold text-green-400 text-[10px] bg-green-900/30 px-1.5 rounded">{settings.max_output_tokens}</span>
                 </label>
-                <input type="range" min="64" max="4096" step="64" value={settings.max_output_tokens} onChange={e => onSettingsChange({ max_output_tokens: parseInt(e.target.value) })} className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-500" />
+                <input type="range" min="64" max="65536" step="10" value={settings.max_output_tokens} onChange={e => onSettingsChange({ max_output_tokens: parseInt(e.target.value) })} className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-500" />
             </div>
             
             {/* Inputs */}

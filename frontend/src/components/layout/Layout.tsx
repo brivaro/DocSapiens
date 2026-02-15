@@ -21,7 +21,6 @@ function Layout() {
     const handleToggleSidebar = () => setSidebarCollapsed((prev: boolean) => !prev);
 
     return (
-        // FIX: h-screen y overflow-hidden
         <div className="flex h-screen bg-gray-900 text-white overflow-hidden font-sans">
             <Toaster 
                 position="top-right"

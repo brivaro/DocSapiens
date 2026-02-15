@@ -76,7 +76,6 @@ export default function Dashboard() {
                 <StatCard title="Documentos" value={stats?.totalDocs} icon={FileText} color="text-blue-400" bg="bg-blue-500/10" loading={isLoading} />
                 <StatCard title="Fragmentos" value={stats?.totalChunks} icon={Database} color="text-purple-400" bg="bg-purple-500/10" loading={isLoading} />
                 
-                {/* CAMBIO: Ahora mostramos número de Colecciones */}
                 <StatCard 
                     title="Colecciones" 
                     value={vectorStores?.length || 0} 
