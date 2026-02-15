@@ -1,7 +1,6 @@
 import React from 'react';
 import { Trash, FileText, DownloadSimple, Eye } from 'phosphor-react';
 import { clsx } from 'clsx';
-import { API_BASE_URL } from '../../api/client';
 
 interface TableDocument {
   id: string;
@@ -109,7 +108,7 @@ const DocumentRow: React.FC<{
 
             {/* Descargar */}
             <a 
-                href={`${API_BASE_URL}/v1/documents/${doc.id}/download`}
+                href={`/api/v1/documents/${doc.id}/download`}
                 className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
                 title="Descargar Original"
                 download

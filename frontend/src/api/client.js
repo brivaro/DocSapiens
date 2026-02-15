@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+export const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const apiClient = axios.create({
     baseURL: API_BASE_URL,
@@ -21,8 +21,6 @@ apiClient.interceptors.response.use(
         else {
             errorMessage = error.message;
         }
-
-        //toast.error(errorMessage); ya lo manejamos en el componente correspondiente
 
         return Promise.reject(error);
     }

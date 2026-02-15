@@ -15,7 +15,7 @@ interface TextToSpeechResponse {
 }
 
 const fetchAudio = async (params: TextToSpeechRequest): Promise<TextToSpeechResponse> => {
-  const { data } = await apiClient.post('/v1/embeddings/speech', params);
+  const { data } = await apiClient.post('/api/v1/embeddings/speech', params);
   return data;
 };
 

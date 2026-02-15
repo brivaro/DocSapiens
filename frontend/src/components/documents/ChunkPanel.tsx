@@ -12,7 +12,7 @@ interface Chunk {
 }
 
 const fetchChunks = async (docId: string): Promise<Chunk[]> => {
-  const { data } = await apiClient.get(`/v1/documents/${docId}/chunks/`);
+  const { data } = await apiClient.get(`/api/v1/documents/${docId}/chunks/`);
   return data;
 };
 

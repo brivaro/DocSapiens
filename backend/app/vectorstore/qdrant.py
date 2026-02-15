@@ -57,13 +57,17 @@ def search_vectors(
     
     search_filter = Filter(should=conditions) if conditions else None
 
-    return client.search(
+    # Usamos query_points en lugar de search (deprecado/eliminado)
+    result = client.query_points(
         collection_name=collection_name,
-        query_vector=query_vector,
+        query=query_vector,
         limit=top_k,
         query_filter=search_filter,
         with_payload=True
     )
+    
+    # query_points devuelve un objeto QueryResponse, accedemos a la lista de puntos
+    return result.points
 
 def fetch_chunks_by_document_id(collection_name: str, doc_id: str, limit: int = 2000) -> List[DocumentChunk]:
     if not client.collection_exists(collection_name):

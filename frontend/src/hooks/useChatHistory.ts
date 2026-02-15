@@ -7,7 +7,7 @@ export const useChatHistory = () => {
   return useQuery<ChatHistoryResponse>({
     queryKey: ['chat-history'],
     queryFn: async () => {
-      const { data } = await apiClient.get('/v1/history/');
+      const { data } = await apiClient.get('/api/v1/history/');
       return data;
     },
   });
@@ -18,7 +18,7 @@ export const useSaveChatHistory = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (item: ChatHistoryCreate) => {
-      const { data } = await apiClient.post('/v1/history/', item);
+      const { data } = await apiClient.post('/api/v1/history/', item);
       return data;
     },
     onSuccess: () => {

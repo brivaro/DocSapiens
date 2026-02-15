@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef } from 'react';
-import { API_BASE_URL } from '../api/client';
 import { Message, ChatRequestParams, Chunk } from '../types/chat';
 import { useAppToast } from './useAppToast';
 import { useSaveChatHistory } from './useChatHistory';
@@ -42,8 +41,7 @@ export const useChatStream = () => {
 
         try {
             // 3. Iniciar Petición Fetch
-            const baseUrl = API_BASE_URL;
-            const fetchUrl = `${baseUrl.replace(/\/$/, '')}/v1/chat/stream`;
+            const fetchUrl = `/api/v1/chat/stream`;
             
             const response = await fetch(fetchUrl, {
                 method: 'POST',
