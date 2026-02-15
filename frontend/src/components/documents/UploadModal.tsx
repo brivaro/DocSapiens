@@ -41,6 +41,25 @@ const uploadDocumentApi = async (params: Omit<FileWithConfig, 'id' | 'file' | 's
     return data;
 };
 
+const getAllowedSplitModes = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const modes = [
+        { value: "delimiter", label: "Delimitador (Texto)" },
+        { value: "whole", label: "Todo Junto" },
+        { value: "size", label: "Tamaño Fijo" }
+    ];
+    
+    if (ext === 'pdf' || ext === 'pptx' || ext === 'ppt') {
+        modes.push({ value: "pages", label: "Por Páginas/Diapositivas" });
+    }
+    
+    if (ext === 'xlsx' || ext === 'xls') {
+        modes.push({ value: "pages", label: "Por Hojas (Excel)" });
+    }
+    
+    return modes;
+};
+
 const inputBaseClass = "w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none transition-all";
 
 const FileConfigItem: React.FC<{
@@ -50,7 +69,9 @@ const FileConfigItem: React.FC<{
   onRemove: (id: string) => void;
   isUploading: boolean;
 }> = ({ item, vectorStores, onUpdate, onRemove, isUploading }) => {
+  
   const [showConfig, setShowConfig] = useState(true);
+  const allowedModes = getAllowedSplitModes(item.filename);
   
   return (
     <div className="p-3 bg-gray-700/30 border border-gray-600 rounded-lg transition-all">
@@ -110,13 +131,14 @@ const FileConfigItem: React.FC<{
             <label className="text-xs font-semibold text-gray-400 block mb-1">Modo de División</label>
             <select 
                 value={item.split_mode} 
-                onChange={e => onUpdate(item.id, { split_mode: e.target.value as FileWithConfig['split_mode'] })} 
+                onChange={e => onUpdate(item.id, { split_mode: e.target.value as any })} 
                 className={inputBaseClass}
             >
-              <option value="delimiter" className="bg-gray-900">Delimitador (Texto)</option>
-              <option value="whole" className="bg-gray-900">Todo Junto (Sin dividir)</option>
-              <option value="size" className="bg-gray-900">Tamaño Fijo</option>
-              <option value="pages" className="bg-gray-900">Por Páginas (PDF/PPT)</option>
+                {allowedModes.map(mode => (
+                    <option key={mode.value} value={mode.value} className="bg-gray-900">
+                        {mode.label}
+                    </option>
+                ))}
             </select>
           </div>
 

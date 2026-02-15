@@ -12,8 +12,10 @@ class ChatService:
                 yield "event: error\ndata: \"Debes seleccionar un Vector Store\"\n\n"
                 return
 
-            # Determinar el tipo de búsqueda (Normal vs Código)
-            search_task = "CODE_RETRIEVAL_QUERY" if request.is_code_query else "RETRIEVAL_QUERY"
+            if request.is_code_query:
+                search_task = "CODE_RETRIEVAL_QUERY"
+            else:
+                search_task = request.task_type or "RETRIEVAL_QUERY"
 
             chunks = retrieve_chunks(
                 query=request.question, 

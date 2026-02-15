@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "../api/client";
-import toast from "react-hot-toast";
 import { VectorStore, VectorStoreCreate } from "../types/vectorStore";
+import { useAppToast } from "./useAppToast";
 
 // API calls
 const fetchStores = async (): Promise<VectorStore[]> => {
@@ -21,6 +21,7 @@ const deleteStore = async (id: string) => {
 // Hook
 export function useVectorStores() {
     const queryClient = useQueryClient();
+    const toast = useAppToast();
 
     const { data: vectorStores, isLoading, error } = useQuery({
         queryKey: ["vectorStores"],

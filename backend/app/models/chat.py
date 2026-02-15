@@ -12,6 +12,7 @@ class ChatRequest(BaseModel):
     vector_store_id: Optional[str] = Field(None, description="ID del Vector Store a usar para la recuperación.")
     is_code_query: bool = Field(False, description="Indica si la consulta es de código (activa un prompt específico para código).")
     system_instruction: Optional[str] = Field(None, description="Instrucción del sistema para el modelo.")
+    task_type: Optional[str] = Field("RETRIEVAL_QUERY", description="Tipo de tarea para el embedding (RETRIEVAL_QUERY, SEMANTIC_SIMILARITY, etc)")
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
     top_k: Optional[int] = Field(None, gt=0)
     max_output_tokens: Optional[int] = Field(None, gt=0, description="Máximo de tokens en la respuesta.")

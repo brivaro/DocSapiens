@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/client';
 import type { ChatHistoryResponse, ChatHistoryCreate, ChatHistoryItem } from '../types/chat';
+import { useAppToast } from './useAppToast';
 
 // Obtener historial completo
 export const useChatHistory = () => {
@@ -39,4 +40,18 @@ export const useUpdateChatHistory = () => {
         queryClient.invalidateQueries({ queryKey: ['chat-history'] });
       },
     });
-  };
+};
+
+export const useDeleteChatHistory = () => {
+    const queryClient = useQueryClient();
+    const toast = useAppToast();
+    return useMutation({
+        mutationFn: async (id: string) => {
+            await apiClient.delete(`/api/v1/history/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['chat-history'] });
+            toast.success("Conversación eliminada");
+        }
+    });
+};

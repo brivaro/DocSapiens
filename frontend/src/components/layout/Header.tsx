@@ -1,4 +1,7 @@
-import { List, X, User, Bell } from 'phosphor-react';
+import { useContext, useState } from 'react';
+import { NotificationsContext } from '../../context/NotificationsContext';
+import { Bell, List, Trash, X } from 'phosphor-react';
+import { clsx } from 'clsx';
 
 interface HeaderProps {
   isSidebarCollapsed: boolean;
@@ -6,6 +9,8 @@ interface HeaderProps {
 }
 
 function Header({ isSidebarCollapsed, toggleSidebar }: HeaderProps) {
+    const { notifications, unreadCount, clearNotifications } = useContext(NotificationsContext)!;
+    const [showNotif, setShowNotif] = useState(false);
     return (
         <header className="bg-gray-800/90 backdrop-blur-md p-4 flex justify-between items-center border-b border-gray-700 h-16 transition-all duration-300 sticky top-0 z-30">
           <div className="flex items-center gap-4">
@@ -15,22 +20,46 @@ function Header({ isSidebarCollapsed, toggleSidebar }: HeaderProps) {
               
           </div>
 
-          <div className="flex items-center space-x-4">
-            <button className="relative p-2 rounded-full hover:bg-gray-700 transition-colors text-gray-300 hover:text-white">
+          {/* Sección de la campana */}
+        <div className="relative">
+            <button 
+                onClick={() => setShowNotif(!showNotif)}
+                className="relative p-2 rounded-full hover:bg-gray-700 transition-colors text-gray-300 hover:text-white"
+            >
                 <Bell size={24} />
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-gray-800"></span>
+                {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-gray-800"></span>
+                )}
             </button>
-            
-            <div className="flex items-center space-x-3 pl-4 border-l border-gray-700">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold border-2 border-gray-600 shadow-md">
-                  <User size={20} weight="fill" />
-              </div>
-              <div className="hidden sm:block">
-                  <p className="text-sm font-medium text-white">Admin</p>
-                  <p className="text-xs text-gray-400">DocSapiens</p>
-              </div>
-            </div>
-          </div>
+
+            {/* Dropdown de notificaciones */}
+            {showNotif && (
+                <div className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in">
+                    <div className="p-3 border-b border-gray-700 flex justify-between items-center bg-gray-900">
+                        <h3 className="text-sm font-bold text-white">Notificaciones</h3>
+                        {notifications.length > 0 && (
+                            <button onClick={clearNotifications} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
+                                <Trash size={12}/> Limpiar
+                            </button>
+                        )}
+                    </div>
+                    <div className="max-h-64 overflow-y-auto scrollbar-thin">
+                        {notifications.length === 0 ? (
+                            <div className="p-4 text-center text-gray-500 text-sm">Sin notificaciones</div>
+                        ) : (
+                            notifications.map(n => (
+                                <div key={n.id} className={clsx("p-3 border-b border-gray-700/50 text-sm", 
+                                    n.type === 'error' ? 'bg-red-900/10' : 'bg-gray-800'
+                                )}>
+                                    <p className="text-gray-200">{n.message}</p>
+                                    <span className="text-[10px] text-gray-500">{new Date(n.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
         </header>
     );
 }

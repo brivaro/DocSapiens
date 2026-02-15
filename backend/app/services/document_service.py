@@ -4,7 +4,7 @@ from typing import List
 from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
-from app.db import crud
+from app.db import document as crud
 from app.db.models import Document
 from app.db.session import SessionLocal
 from app.models.document import DocumentCreate, DocumentResponse, DocumentChunk, DocumentUpdateParams

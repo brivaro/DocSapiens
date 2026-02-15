@@ -1,7 +1,8 @@
 import React from 'react';
-import { Notebook, X, ChatCircleDots } from 'phosphor-react';
+import { Notebook, X, ChatCircleDots, Trash } from 'phosphor-react';
 import type { ChatHistoryItem } from '../../types/chat';
-import { useChatHistory } from '../../hooks/useChatHistory';
+import { useChatHistory, useDeleteChatHistory } from '../../hooks/useChatHistory';
+import { clsx } from 'clsx';
 
 interface Props {
     isCollapsed: boolean;
@@ -11,16 +12,22 @@ interface Props {
 const ChatHistoryButton: React.FC<Props> = ({ isCollapsed, onResumeConversation }) => {
     const [open, setOpen] = React.useState(false);
     const { data, isLoading } = useChatHistory();
+    const { mutate: deleteHistory } = useDeleteChatHistory();
 
     const handleResume = (item: ChatHistoryItem) => {
         if (onResumeConversation) onResumeConversation(item);
         setOpen(false);
     };
 
-    // Si está colapsado y no está abierto, no renderizamos el panel flotante aún
+    const handleDelete = (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        if (confirm("¿Estás seguro de que quieres eliminar esta conversación?")) {
+            deleteHistory(id);
+        }
+    };
+
     if (!isCollapsed && !open) return null;
     
-    // Botón flotante cuando el panel principal está cerrado o colapsado
     if (!open) {
         return (
             <button
@@ -36,7 +43,7 @@ const ChatHistoryButton: React.FC<Props> = ({ isCollapsed, onResumeConversation 
 
     // Panel desplegado (Estilo Oscuro)
     return (
-        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 h-full flex flex-col gap-4 w-80 transition-all shadow-2xl z-20">
+        <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 h-full flex flex-col gap-4 w-80 transition-all shadow-2xl z-50 animate-fade-in">
             <div className="flex justify-between items-center border-b border-gray-700 pb-3">
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Notebook size={20} weight="fill" className="text-purple-500"/> Historial
@@ -56,19 +63,29 @@ const ChatHistoryButton: React.FC<Props> = ({ isCollapsed, onResumeConversation 
                     </div>
                 ) : data?.history && data.history.length > 0 ? (
                     data.history.map((item) => (
-                        <button
-                            key={item.id}
-                            className="text-left p-3 rounded-lg border border-gray-700 bg-gray-900/50 hover:bg-gray-700 hover:border-purple-500/50 transition-all flex flex-col gap-1 group"
-                            onClick={() => handleResume(item)}
-                        >
-                            <span className="font-semibold text-gray-200 truncate flex items-center gap-2 group-hover:text-white text-sm">
-                                <ChatCircleDots size={16} className="text-purple-400 flex-shrink-0"/>
-                                {item.questions && item.questions.length > 0 ? item.questions[0] : "Conversación sin título"}
-                            </span>
-                            <span className="text-xs text-gray-500 truncate pl-6 block">
-                                {item.answers && item.answers.length > 0 ? item.answers[0]?.substring(0, 40) + "..." : "..."}
-                            </span>
-                        </button>
+                        <div key={item.id} className="relative group">
+                            <button
+                                className="w-full text-left p-3 pr-8 rounded-lg border border-gray-700 bg-gray-900/50 hover:bg-gray-700 hover:border-purple-500/50 transition-all flex flex-col gap-1"
+                                onClick={() => handleResume(item)}
+                            >
+                                <span className="font-semibold text-gray-200 truncate flex items-center gap-2 group-hover:text-white text-sm">
+                                    <ChatCircleDots size={16} className="text-purple-400 flex-shrink-0"/>
+                                    {item.questions && item.questions.length > 0 ? item.questions[0] : "Conversación sin título"}
+                                </span>
+                                <span className="text-xs text-gray-500 truncate pl-6 block">
+                                    {item.answers && item.answers.length > 0 ? item.answers[0]?.substring(0, 40) + "..." : "..."}
+                                </span>
+                            </button>
+                            
+                            {/* Botón de Eliminar */}
+                            <button
+                                onClick={(e) => handleDelete(e, item.id)}
+                                className="absolute right-2 top-3 p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100"
+                                title="Eliminar conversación"
+                            >
+                                <Trash size={16} />
+                            </button>
+                        </div>
                     ))
                 ) : (
                     <div className="text-gray-500 text-sm text-center mt-8 p-4 border border-dashed border-gray-700 rounded-lg">

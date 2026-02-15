@@ -3,31 +3,28 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.chat import ChatHistoryResponse, ChatHistoryItem, ChatHistoryCreate, Chunk
-from app.db.history_crud import create_history, get_history, list_histories, update_history
+from app.db.history import create_history, get_history, list_histories, update_history, delete_history
 
 router = APIRouter()
 
 @router.post("/", response_model=ChatHistoryItem)
 def save_history(history: ChatHistoryCreate, db: Session = Depends(get_db)):
-    # Ya no convertimos a strings aquí. Pasamos los objetos Chunk directamente.
     db_history = create_history(
         db, 
         questions=[history.question], 
         answers=[history.answer], 
-        chunks_for_first_message=history.chunks # Pasamos la lista de objetos
+        chunks_for_first_message=history.chunks
     )
     
     return ChatHistoryItem(
         id=str(db_history.id),
         questions=[history.question],
         answers=[history.answer],
-        # Envolvemos la lista de chunks en otra lista para que coincida con el modelo List[List[Chunk]]
         chunks=[history.chunks] 
     )
 
 @router.put("/{history_id}", response_model=ChatHistoryItem)
 def update_history_endpoint(history_id: str, new_entry: ChatHistoryCreate, db: Session = Depends(get_db)):
-    # Pasamos los objetos Chunk directamente al CRUD
     updated_history = update_history(
         db, 
         history_id=history_id, 
@@ -39,7 +36,6 @@ def update_history_endpoint(history_id: str, new_entry: ChatHistoryCreate, db: S
     if not updated_history:
         raise HTTPException(status_code=404, detail="Historial no encontrado")
 
-    # Reutilizamos la lógica de parseo de los endpoints GET para construir la respuesta
     nested_parsed_chunks = []
     for chunk_list_str in updated_history.chunks:
         try:
@@ -56,7 +52,6 @@ def update_history_endpoint(history_id: str, new_entry: ChatHistoryCreate, db: S
         chunks=nested_parsed_chunks
     )
 
-# --- ENDPOINT GET ALL ---
 @router.get("/", response_model=ChatHistoryResponse)
 def get_all_histories(db: Session = Depends(get_db)):
     histories = list_histories(db)
@@ -81,7 +76,6 @@ def get_all_histories(db: Session = Depends(get_db)):
         ))
     return ChatHistoryResponse(history=items)
 
-# --- ENDPOINT GET BY ID CORREGIDO ---
 @router.get("/{history_id}", response_model=ChatHistoryItem)
 def get_history_by_id(history_id: str, db: Session = Depends(get_db)):
     db_history = get_history(db, history_id)
@@ -102,3 +96,10 @@ def get_history_by_id(history_id: str, db: Session = Depends(get_db)):
         answers=db_history.answers,
         chunks=parsed_chunks
     )
+
+@router.delete("/{history_id}", status_code=204)
+def delete_history_endpoint(history_id: str, db: Session = Depends(get_db)):
+    success = delete_history(db, history_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Historial no encontrado")
+    return

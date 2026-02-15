@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy.orm import Session
-from app.db import crud
+from app.db import vector_store as crud
 from app.models.vector_store import VectorStoreCreate, VectorStoreResponse
 from app.vectorstore import qdrant
 

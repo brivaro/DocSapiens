@@ -1,7 +1,7 @@
-import { useMutation } from '@tanstack/react-query';
-import apiClient from '../api/client'; // Importación corregida
-import { toast } from 'react-hot-toast'; // Aseguramos usar react-hot-toast
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import apiClient from '../api/client';
+import { useAppToast } from './useAppToast';
 
 interface TextToSpeechRequest {
   text: string;
@@ -20,26 +20,46 @@ const fetchAudio = async (params: TextToSpeechRequest): Promise<TextToSpeechResp
 };
 
 export const useTextToSpeech = () => {
-    const [audioSrc, setAudioSrc] = useState<string | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const toast = useAppToast();
 
-    const { mutate, isPending: isGenerating } = useMutation({
+    const { mutateAsync } = useMutation({
         mutationFn: fetchAudio,
-        onSuccess: (data) => {
-            const src = `data:audio/wav;base64,${data.audio_base64}`;
-            setAudioSrc(src);
-            toast.success("Audio generado");
-        },
-        onError: (error) => {
-            setAudioSrc(null); 
-            console.error("Error fetching speech data:", error);
-            toast.error("No se pudo generar el audio.");
-        }
     });
 
-    const generateSpeech = (text: string) => {
-        if (isGenerating || audioSrc) return;
-        mutate({ text: text, voice_name: 'Kore' });
+    const speak = async (text: string) => {
+        if (isPlaying) return;
+        
+        setIsPlaying(true);
+        const toastId = toast.loading("Generando audio...");
+        
+        try {
+            const data = await mutateAsync({ text, voice_name: 'Kore' });
+            
+            // Crear audio desde base64
+            const audio = new Audio(`data:audio/wav;base64,${data.audio_base64}`);
+            
+            audio.onended = () => {
+                setIsPlaying(false);
+            };
+            
+            audio.onerror = (e) => {
+                console.error("Audio playback error", e);
+                setIsPlaying(false);
+                toast.error("Error al reproducir audio");
+            };
+
+            await audio.play();
+            toast.dismiss(toastId);
+            toast.success("Reproduciendo...");
+            
+        } catch (error) {
+            console.error("TTS Error:", error);
+            setIsPlaying(false);
+            toast.dismiss(toastId);
+            toast.error("No se pudo generar el audio.");
+        }
     };
 
-    return { generateSpeech, isGenerating, audioSrc };
+    return { speak, isPlaying };
 };

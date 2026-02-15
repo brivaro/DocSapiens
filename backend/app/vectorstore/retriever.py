@@ -2,9 +2,8 @@ from typing import List, Optional
 from app.models.chat import Chunk
 from app.services.google_service import google_service
 from app.db.session import SessionLocal
-from app.db import crud
+from app.db import vector_store as crud
 from app.vectorstore import qdrant
-import logging
 
 def retrieve_chunks(
     query: str, 
