@@ -28,6 +28,7 @@ export interface ChatRequestParams {
   system_instruction?: string;
   temperature?: number;
   top_k?: number;
+  task_type?: string;
   max_output_tokens?: number;
   thinking_budget?: number;
 }

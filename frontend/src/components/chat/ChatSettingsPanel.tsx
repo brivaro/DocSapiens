@@ -27,10 +27,9 @@ const ChatSettingsPanel: React.FC<Props> = ({ settings, onSettingsChange }) => {
                     onChange={e => onSettingsChange({ model: e.target.value })}
                     className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer"
                 >
-                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                    <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
                     <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                    <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                    <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
                 </select>
             </div>
 

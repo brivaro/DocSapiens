@@ -4,7 +4,8 @@ from typing import List
 from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
-from app.db import document as crud
+from app.db import document as doc_crud
+from app.db import vector_store as vs_crud
 from app.db.models import Document
 from app.db.session import SessionLocal
 from app.models.document import DocumentCreate, DocumentResponse, DocumentChunk, DocumentUpdateParams
@@ -14,32 +15,33 @@ from app.vectorstore import qdrant
 from app.services.google_service import google_service
 
 class DocumentService:
-    @property
-    def crud(self): return crud
+    def __init__(self):
+        self.doc_crud = doc_crud
+        self.vs_crud = vs_crud
     
     @staticmethod
     def db_session(): return SessionLocal()
 
     def create_document(self, doc: DocumentCreate, background_tasks: BackgroundTasks, db: Session) -> Document:
         # Verificar que el Vector Store existe
-        vs = crud.get_vector_store(db, doc.vector_store_id)
+        vs = self.vs_crud.get_vector_store(db, doc.vector_store_id)
         if not vs:
             raise ValueError("Vector Store especificado no existe.")
 
         # Verificar duplicados dentro de la misma colección
-        existing_doc = crud.get_document_by_filename_in_store(db, doc.filename, doc.vector_store_id)
+        existing_doc = self.doc_crud.get_document_by_filename_in_store(db, doc.filename, doc.vector_store_id)
         
-        file_hash = hashlib.md5(doc.content).hexdigest()
+        file_hash = hashlib.sha512(doc.content).hexdigest()
 
         if existing_doc:
             logging.info(f"[INFO] Actualizando documento '{doc.filename}' en colección '{vs.name}'.")
             # Borramos chunks antiguos de Qdrant antes de reprocesar
             collection_name = f"{vs.name}_{vs.embedding_dimension}"
             qdrant.delete_document_from_collection(collection_name, str(existing_doc.id))
-            db_doc = self.crud.update_document(db, existing_doc, doc)
+            db_doc = self.doc_crud.update_document(db, existing_doc, doc)
         else:
             logging.info(f"[INFO] Creando documento '{doc.filename}' en colección '{vs.name}'.")
-            db_doc = self.crud.create_document(db, doc)
+            db_doc = self.doc_crud.create_document(db, doc)
         
         db_doc.file_hash = file_hash
         db.commit()
@@ -50,7 +52,7 @@ class DocumentService:
 
     def delete_document(self, doc_id: str) -> None:
         with self.db_session() as db:
-            db_doc = self.crud.get_document_by_id(db, doc_id)
+            db_doc = self.doc_crud.get_document_by_id(db, doc_id)
             if not db_doc: return
             
             # Necesitamos el VS para saber el nombre de la colección
@@ -60,16 +62,16 @@ class DocumentService:
             # Borrar de Qdrant
             qdrant.delete_document_from_collection(collection_name, doc_id)
             # Borrar de DB
-            self.crud.delete_document(db, doc_id)
+            self.doc_crud.delete_document(db, doc_id)
 
     def list_documents(self, vector_store_id: str = None) -> List[DocumentResponse]:
         with self.db_session() as db:
-            docs = self.crud.list_documents(db, vector_store_id)
+            docs = self.doc_crud.list_documents(db, vector_store_id)
             return [DocumentResponse.model_validate(d) for d in docs]
 
     def get_document_chunks(self, doc_id: str) -> List[DocumentChunk]:
         with self.db_session() as db:
-            db_doc = self.crud.get_document_by_id(db, doc_id)
+            db_doc = self.doc_crud.get_document_by_id(db, doc_id)
             if not db_doc: return []
             
             vs = db_doc.vector_store
@@ -81,7 +83,7 @@ class DocumentService:
         """Tarea de fondo para procesar el documento."""
         with self.db_session() as db:
             try:
-                db_doc = self.crud.get_document_by_id(db, doc_id)
+                db_doc = self.doc_crud.get_document_by_id(db, doc_id)
                 if not db_doc: return
 
                 vs = db_doc.vector_store
@@ -92,14 +94,14 @@ class DocumentService:
                 task_type = "RETRIEVAL_DOCUMENT"
 
                 qdrant.ensure_collection(collection_name, dimension)
-                self.crud.update_document_field(db, doc_id, "status", "processing")
+                self.doc_crud.update_document_field(db, doc_id, "status", "processing")
                 
                 # 1. Extract
                 text = db_doc.text_content
                 if not text:
                     text = _extract_text_from_content(db_doc.content, db_doc.content_type, db_doc.filename)
                     if text:
-                        self.crud.update_document_field(db, doc_id, "text_content", text)
+                        self.doc_crud.update_document_field(db, doc_id, "text_content", text)
                         db.commit()
                         db.refresh(db_doc)
                 
@@ -149,7 +151,7 @@ class DocumentService:
 
             except Exception as e:
                 logging.error(f"[TASK ERROR] Doc {doc_id}: {e}")
-                db_doc = self.crud.get_document_by_id(db, doc_id)
+                db_doc = self.doc_crud.get_document_by_id(db, doc_id)
                 if db_doc:
                     db_doc.status = "failed"
                     db_doc.error_message = str(e)

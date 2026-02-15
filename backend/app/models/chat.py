@@ -8,7 +8,7 @@ class ChatRequest(BaseModel):
     k: int = Field(5, gt=0, le=30, description="Número de chunks a recuperar.")
     document_ids: Optional[List[str]] = Field(None, description="Lista opcional de IDs de documentos para filtrar la búsqueda.")
     tags: Optional[List[str]] = Field(None, description="Lista opcional de etiquetas para filtrar la búsqueda.")
-    model: Optional[str] = Field("gemini-2.0-flash", description="Modelo generativo a usar.") # gemini-2.5-pro, gemini-2.5-flash, gemini-2.0-flash-lite	
+    model: Optional[str] = Field("gemini-2.5-flash", description="Modelo generativo a usar.") # gemini-2.5-pro, gemini-2.5-flash
     vector_store_id: Optional[str] = Field(None, description="ID del Vector Store a usar para la recuperación.")
     is_code_query: bool = Field(False, description="Indica si la consulta es de código (activa un prompt específico para código).")
     system_instruction: Optional[str] = Field(None, description="Instrucción del sistema para el modelo.")

@@ -1,7 +1,7 @@
 import React from 'react';
 import Select from 'react-select';
 import { useDocuments } from '../../hooks/useDocuments';
-import { Funnel, Tag, Stack, Bookmarks, Crosshair } from 'phosphor-react';
+import { Funnel, Tag, Stack, Bookmarks } from 'phosphor-react';
 
 type SelectOption = { value: string; label: string };
 
@@ -9,34 +9,25 @@ interface Filters {
     documentIds: string[];
     tags: string[];
     k: number;
-    taskType: string;
 }
-
-const taskTypeOptions = [
-    { value: 'RETRIEVAL_QUERY', label: 'Búsqueda General (Retrieval)' },
-    { value: 'SEMANTIC_SIMILARITY', label: 'Similitud Semántica' },
-    { value: 'QUESTION_ANSWERING', label: 'Pregunta y Respuesta (Q&A)' },
-    { value: 'FACT_VERIFICATION', label: 'Verificación de Hechos' },
-];
 
 interface Props {
     filters: Filters;
     onFiltersChange: (newFilters: Partial<Filters>) => void;
 }
 
-// Estilos consistentes con main.css
 const selectStyles = {
     control: (base: any) => ({
         ...base,
-        backgroundColor: '#1f2937', // gray-800
-        borderColor: '#4b5563', // gray-600
+        backgroundColor: '#1f2937',
+        borderColor: '#4b5563',
         color: 'white',
         minHeight: '42px',
         borderRadius: '0.5rem',
     }),
     menu: (base: any) => ({
         ...base,
-        backgroundColor: '#1f2937', // gray-800
+        backgroundColor: '#1f2937',
         border: '1px solid #374151',
         zIndex: 50,
     }),
@@ -60,13 +51,13 @@ const ChatFiltersPanel: React.FC<Props> = ({ filters, onFiltersChange }) => {
         value: doc.id,
         label: doc.filename,
     }));
-
+    
     const tagOptions: SelectOption[] = React.useMemo(() => {
         const tagsSet = new Set<string>();
         apiDocuments.forEach(doc => doc.tags?.forEach(tag => tagsSet.add(tag)));
         return Array.from(tagsSet).map(tag => ({ value: tag, label: tag }));
     }, [apiDocuments]);
-
+    
     return (
         <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 h-full flex flex-col gap-6 shadow-lg">
             <h2 className="text-sm font-bold text-white flex border-b border-gray-700 pb-3 items-center gap-2">
@@ -77,19 +68,7 @@ const ChatFiltersPanel: React.FC<Props> = ({ filters, onFiltersChange }) => {
             <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                 <div>
                     <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        <Crosshair size={14} className="text-orange-400" /> Intención (Task Type)
-                    </label>
-                    <Select
-                        options={taskTypeOptions}
-                        value={taskTypeOptions.find(o => o.value === filters.taskType)}
-                        onChange={(opt) => onFiltersChange({ taskType: opt?.value || 'RETRIEVAL_QUERY' })}
-                        styles={selectStyles}
-                        isSearchable={false}
-                    />
-                </div>
-                <div>
-                    <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        <Bookmarks size={14} className="text-purple-400" /> Documentos
+                        <Bookmarks size={14} className="text-purple-400"/> Documentos
                     </label>
                     <Select<SelectOption, true>
                         isMulti
@@ -104,7 +83,7 @@ const ChatFiltersPanel: React.FC<Props> = ({ filters, onFiltersChange }) => {
                 </div>
                 <div>
                     <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        <Tag size={14} className="text-yellow-400" /> Etiquetas
+                        <Tag size={14} className="text-yellow-400"/> Etiquetas
                     </label>
                     <Select<SelectOption, true>
                         isMulti
@@ -119,7 +98,7 @@ const ChatFiltersPanel: React.FC<Props> = ({ filters, onFiltersChange }) => {
                 </div>
                 <div>
                     <label htmlFor="k-slider" className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                        <span className="flex items-center gap-2"><Stack size={14} className="text-green-400" /> Chunks ({filters.k})</span>
+                       <span className="flex items-center gap-2"><Stack size={14} className="text-green-400"/> Chunks ({filters.k})</span>
                     </label>
                     <input
                         id="k-slider"

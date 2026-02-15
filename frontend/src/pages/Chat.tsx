@@ -9,18 +9,59 @@ import ChatFiltersPanel from '../components/chat/ChatFiltersPanel';
 import ChatHistoryPanel from '../components/chat/ChatHistoryPanel';
 import WelcomePlaceholder from '../components/chat/WelcomePlaceholder';
 import { 
-    Robot, X, CircleNotch, Database, Code, CheckCircle, 
-    SidebarSimple, Notebook, Gear
+    Robot, X, CircleNotch, Database, Code, 
+    SidebarSimple, Notebook, Gear, MagnifyingGlass, 
+    Brain, Question, ShieldCheck
 } from 'phosphor-react';
 import { Chunk, ChatRequestParams, ChatHistoryItem } from '../types/chat';
 import { clsx } from 'clsx';
 
+// --- CONFIGURACIÓN DE MODOS ---
+const TASK_MODES = {
+    RETRIEVAL_QUERY: { 
+        label: 'Búsqueda General', 
+        icon: MagnifyingGlass, 
+        color: 'text-blue-400', 
+        headerTitle: 'Búsqueda Estándar',
+        desc: 'Recuperación de información general'
+    },
+    CODE_RETRIEVAL_QUERY: { 
+        label: 'Asistente de Código', 
+        icon: Code, 
+        color: 'text-green-400', 
+        headerTitle: 'Code Search',
+        desc: 'Optimizado para programación'
+    },
+    SEMANTIC_SIMILARITY: { 
+        label: 'Similitud Semántica', 
+        icon: Brain, 
+        color: 'text-purple-400', 
+        headerTitle: 'Análisis Semántico',
+        desc: 'Búsqueda por significado profundo'
+    },
+    QUESTION_ANSWERING: { 
+        label: 'Pregunta y Respuesta', 
+        icon: Question, 
+        color: 'text-orange-400', 
+        headerTitle: 'Q&A System',
+        desc: 'Respuestas directas y precisas'
+    },
+    FACT_VERIFICATION: { 
+        label: 'Verificación de Hechos', 
+        icon: ShieldCheck, 
+        color: 'text-teal-400', 
+        headerTitle: 'Auditoría de Datos',
+        desc: 'Búsqueda de evidencias'
+    },
+};
+
 interface ChatFilters {
     vectorStoreId: string;
-    isCodeQuery: boolean;
+    // Quitamos isCodeQuery del estado directo, lo derivaremos del taskType
     documentIds: string[];
     tags: string[];
     k: number;
+    taskType: string; // Este será el campo maestro
 }
 
 export default function Chat() {
@@ -38,10 +79,10 @@ export default function Chat() {
     // --- CONFIGURACIÓN ---
     const [filters, setFilters] = useState<ChatFilters>({ 
         vectorStoreId: '', 
-        isCodeQuery: false,
         documentIds: [], 
         tags: [], 
-        k: 5 
+        k: 5,
+        taskType: 'RETRIEVAL_QUERY' // Valor por defecto
     });
     
     const [settings, setSettings] = useState<Settings>({ 
@@ -55,7 +96,6 @@ export default function Chat() {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // Scroll automático
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, isLoading]);
@@ -63,10 +103,14 @@ export default function Chat() {
     const handleSend = (text: string) => {
         if (!filters.vectorStoreId) return;
 
+        // Lógica para determinar si es code query basado en el taskType
+        const isCodeMode = filters.taskType === 'CODE_RETRIEVAL_QUERY';
+
         const params: ChatRequestParams = {
             question: text,
             vector_store_id: filters.vectorStoreId,
-            is_code_query: filters.isCodeQuery,
+            is_code_query: isCodeMode, 
+            task_type: filters.taskType,
             k: filters.k,
             tags: filters.tags,
             document_ids: filters.documentIds,
@@ -85,7 +129,6 @@ export default function Chat() {
     
     const handleResumeConversation = (history: ChatHistoryItem) => {
         setCurrentHistoryId(history.id);
-
         const msgs = [];
         for(let i=0; i < history.questions.length; i++) {
             msgs.push({ id: `q-${i}`, role: 'user' as const, content: history.questions[i] });
@@ -99,25 +142,31 @@ export default function Chat() {
         setMessages(msgs);
     };
 
+    // Helper para obtener la configuración del modo actual de forma segura
+    const currentMode = TASK_MODES[filters.taskType as keyof typeof TASK_MODES] || TASK_MODES.RETRIEVAL_QUERY;
+    const ModeIcon = currentMode.icon;
+
     return (
         <div className="flex h-full overflow-hidden relative bg-gray-900">
             
-            {/* 1. PANEL IZQUIERDO (FILTROS) */}
+            {/* 1. PANEL IZQUIERDO (COLECCIÓN Y MODOS) */}
             <div className={clsx(
                 "flex-shrink-0 h-full flex flex-col gap-4 transition-all duration-300 ease-in-out border-r border-gray-800 bg-gray-900/50",
                 showLeftPanel ? "w-72 p-4 translate-x-0 opacity-100" : "w-0 p-0 -translate-x-4 opacity-0 overflow-hidden border-none"
             )}>
-                {/* Selector Colección */}
-                <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col gap-4 shadow-lg min-w-[250px]">
+                {/* CAJA PRINCIPAL: Colección y Modo */}
+                <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col gap-5 shadow-lg min-w-[250px]">
+                    
+                    {/* SELECTOR COLECCIÓN */}
                     <div>
-                        <label className="flex items-center gap-2 text-sm font-bold text-white mb-2">
-                            <Database size={20} className="text-blue-400" weight="fill"/> Colección Activa
+                        <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                            <Database size={14} className="text-blue-400" weight="fill"/> Colección Activa
                         </label>
                         <select 
                             value={filters.vectorStoreId}
                             onChange={e => setFilters(p => ({...p, vectorStoreId: e.target.value}))}
                             className={clsx(
-                                "w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer",
+                                "w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer hover:bg-gray-800 transition-colors",
                                 !filters.vectorStoreId && "border-red-500/50"
                             )}
                         >
@@ -128,27 +177,31 @@ export default function Chat() {
                         </select>
                     </div>
 
-                    {/* Toggle Código */}
-                    <div 
-                        className={clsx(
-                            "p-3 rounded-lg border flex items-center justify-between cursor-pointer transition-colors select-none",
-                            filters.isCodeQuery 
-                                ? "bg-green-900/20 border-green-500/50" 
-                                : "bg-gray-900/50 border-gray-700 hover:bg-gray-700"
-                        )}
-                        onClick={() => setFilters(p => ({...p, isCodeQuery: !p.isCodeQuery}))}
-                    >
-                        <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer pointer-events-none">
-                            <Code size={18} weight="bold" className={filters.isCodeQuery ? "text-green-400" : "text-gray-500"} />
-                            Modo Código
+                    <div className="h-px bg-gray-700/50 w-full"></div>
+
+                    {/* SELECTOR DE MODO (NUEVO) */}
+                    <div>
+                         <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                            <ModeIcon size={14} className={currentMode.color} weight="fill"/> Modo
                         </label>
-                        <div className={clsx("w-4 h-4 rounded border flex items-center justify-center", filters.isCodeQuery ? "bg-green-500 border-green-500" : "border-gray-500")}>
-                            {filters.isCodeQuery && <CheckCircle size={12} weight="fill" className="text-black" />}
-                        </div>
+                        <select 
+                            value={filters.taskType}
+                            onChange={e => setFilters(p => ({...p, taskType: e.target.value}))}
+                            className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2.5 text-sm text-white focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer hover:bg-gray-800 transition-colors"
+                        >
+                            {Object.entries(TASK_MODES).map(([key, config]) => (
+                                <option key={key} value={key}>
+                                    {config.label}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-[10px] text-gray-500 mt-1.5 ml-1">
+                            {currentMode.desc}
+                        </p>
                     </div>
                 </div>
 
-                {/* Filtros Avanzados */}
+                {/* Filtros Avanzados (Resto de filtros) */}
                 <div className="flex-1 min-h-0 min-w-[250px]">
                     <ChatFiltersPanel filters={filters} onFiltersChange={handleFiltersChange} />
                 </div>
@@ -157,7 +210,7 @@ export default function Chat() {
             {/* 2. ÁREA CENTRAL (CHAT) */}
             <div className="flex-1 flex flex-col h-full min-w-0 bg-gray-900 relative z-0">
                 
-                {/* Header Chat */}
+                {/* Header Chat (DINÁMICO SEGÚN MODO) */}
                 <div className="h-16 px-6 border-b border-gray-800 flex justify-between items-center bg-gray-900/95 backdrop-blur-sm z-10">
                     <div className="flex items-center gap-3">
                         
@@ -172,34 +225,37 @@ export default function Chat() {
                         <div className="h-6 w-px bg-gray-700 mx-1"></div>
 
                         <div className="flex items-center gap-3">
-                            <div className="bg-indigo-600/20 p-1.5 rounded-lg text-indigo-400">
-                                <Robot size={24} weight="fill" />
-                                </div>
-                                <div>
-                                <h2 className="text-md font-bold text-white">Chat DocSapiens</h2>
-                                <p className="text-xs text-gray-400 flex items-center gap-2">
-                                    {filters.isCodeQuery 
-                                        ? <span className="text-green-400 flex items-center gap-1"><Code size={12}/> Code Search</span> 
-                                        : <span className="text-indigo-300">Búsqueda Semántica</span>
-                                    }
+                            <div className={clsx("bg-gray-800/50 p-2 rounded-lg border border-gray-700/50", currentMode.color)}>
+                                <ModeIcon size={20} weight="fill" />
+                            </div>
+                            <div>
+                                <h2 className="text-md font-bold text-white leading-tight">
+                                    Chat DocSapiens
+                                </h2>
+                                <p className={clsx("text-xs flex items-center gap-1.5 font-medium", currentMode.color)}>
+                                    {currentMode.headerTitle}
                                 </p>
-                                {filters.vectorStoreId && (
-                                    <p className="text-[10px] text-gray-500 mt-1">
-                                        Conectado a: <span className="text-blue-400">{vectorStores?.find(v => v.id === filters.vectorStoreId)?.name}</span>
-                                    </p>
-                                )}
                             </div>
                         </div>
                     </div>
 
-                    <button 
-                        onClick={clearChat}
-                        className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-900/10 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium"
-                        title="Borrar mensajes actuales"
-                    >
-                        <X size={16} weight="bold" />
-                        <span className="hidden sm:inline">Limpiar</span>
-                    </button>
+                    <div className="flex items-center gap-4">
+                        {filters.vectorStoreId && (
+                            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-800 rounded-full border border-gray-700 text-xs text-gray-400">
+                                <Database size={12} className="text-blue-400"/>
+                                <span className="max-w-[150px] truncate">
+                                    {vectorStores?.find(v => v.id === filters.vectorStoreId)?.name || '...'}
+                                </span>
+                            </div>
+                        )}
+                        <button 
+                            onClick={clearChat}
+                            className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-900/10 rounded-lg transition-colors"
+                            title="Borrar mensajes actuales"
+                        >
+                            <X size={20} weight="bold" />
+                        </button>
+                    </div>
                 </div>
 
                 {!filters.vectorStoreId && messages.length === 0 && (
@@ -288,7 +344,10 @@ export default function Chat() {
                                 <button onClick={() => setShowHistoryPanel(false)} className="text-gray-500 hover:text-white"><X size={14}/></button>
                             </div>
                             <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600">
-                                <ChatHistoryPanel onResumeConversation={handleResumeConversation} />
+                                <ChatHistoryPanel 
+                                    isCollapsed={showHistoryPanel} 
+                                    onResumeConversation={handleResumeConversation} 
+                                />
                             </div>
                         </div>
                     )}
