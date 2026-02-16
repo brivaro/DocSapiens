@@ -21,7 +21,6 @@ const ChatHistoryPanel: React.FC<Props> = ({ isCollapsed, onResumeConversation }
     const handleDelete = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         deleteHistory(id);
-        toast.success("Conversación eliminada");
     };
 
     // Panel desplegado (Estilo Oscuro)

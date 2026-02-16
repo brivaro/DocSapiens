@@ -84,6 +84,17 @@ export const useChatStream = () => {
                             } catch (e) { console.error("Error parsing sources", e); }
                         }
                     } 
+                    else if (trimmed.startsWith("event: thought")) {
+                        const dataPart = line.split("data: ")[1];
+                        if (dataPart) {
+                            try {
+                                const thoughtToken = JSON.parse(dataPart);
+                                setMessages(prev => prev.map(m => 
+                                    m.id === assistantMsgId ? { ...m, thoughts: (m.thoughts || "") + thoughtToken } : m
+                                ));
+                            } catch (e) { console.error(e); }
+                        }
+                    }
                     else if (trimmed.startsWith("event: token")) {
                         const dataPart = line.split("data: ")[1];
                         if (dataPart) {

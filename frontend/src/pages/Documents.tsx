@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { useDocuments } from '../hooks/useDocuments';
+import { useVectorStores } from '../hooks/useVectorStores';
 import DocumentTable from '../components/documents/DocumentTable';
 import ChunkPanel from '../components/documents/ChunkPanel';
 import UploadModal from '../components/documents/UploadModal';
 import DeleteConfirmModal from '../components/documents/DeleteConfirmModal';
+import ReIndexModal from '../components/documents/ReIndexModal';
 import { formatDocType, getFilenameWithoutExtension } from '../utils/format';
 import { Plus, Search } from 'lucide-react';
 import Select from 'react-select';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CloudArrowUp } from 'phosphor-react';
+import type { ApiDocument } from '../types/document';
 
 type SelectOption = { value: string; label: string };
 
@@ -17,14 +20,14 @@ const selectStyles = {
         ...base, 
         backgroundColor: '#1f2937', 
         borderColor: '#4b5563', 
-        color: 'white',
+        color: 'white', 
         minHeight: '42px'
     }),
     menu: (base: any) => ({ 
         ...base, 
         backgroundColor: '#1f2937', 
-        border: '1px solid #374151',
-        zIndex: 9999
+        border: '1px solid #374151', 
+        zIndex: 9999 
     }),
     menuPortal: (base: any) => ({ 
         ...base, 
@@ -34,7 +37,7 @@ const selectStyles = {
         ...base, 
         backgroundColor: state.isSelected ? '#2563eb' : state.isFocused ? '#374151' : 'transparent', 
         color: 'white', 
-        cursor: 'pointer',
+        cursor: 'pointer', 
     }),
     singleValue: (base: any) => ({ ...base, color: 'white' }),
     multiValue: (base: any) => ({ ...base, backgroundColor: '#374151', border: '1px solid #4b5563' }),
@@ -47,10 +50,21 @@ const Documents: React.FC = () => {
   const [isUploadModalOpen, setUploadModalOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState<{ id: string; name: string } | null>(null);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const { documents: apiDocuments = [], isLoading, deleteDocument } = useDocuments();
+  
+  // Filtro por Vector Store
+  const { vectorStores } = useVectorStores();
+  const [selectedStore, setSelectedStore] = useState<SelectOption | null>(null);
+
+  // Pasamos el ID de la colección al hook de documentos
+  const { documents: apiDocuments = [], isLoading, deleteDocument, reIndexDocument } = useDocuments(selectedStore?.value);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<SelectOption | null>(null);
   const [tagFilter, setTagFilter] = useState<readonly SelectOption[]>([]);
+
+  // Estado para Re-Indexar
+  const [isReIndexModalOpen, setReIndexModalOpen] = useState(false);
+  const [docToReIndex, setDocToReIndex] = useState<ApiDocument | null>(null);
 
   const filteredDocuments = useMemo(() => {
     return apiDocuments.filter(doc => {
@@ -78,6 +92,7 @@ const Documents: React.FC = () => {
   };
   
   const handleDeleteRequest = (doc: { id: string; filename: string }) => setDocToDelete({ id: doc.id, name: doc.filename });
+  
   const confirmDelete = () => {
     if (docToDelete) {
       if (selectedDocId === docToDelete.id) setSelectedDocId(null);
@@ -86,9 +101,24 @@ const Documents: React.FC = () => {
     }
   };
 
+  const handleReIndexClick = (docId: string) => {
+      const doc = apiDocuments.find(d => d.id === docId);
+      if (doc) {
+          setDocToReIndex(doc);
+          setReIndexModalOpen(true);
+      }
+  };
+
+  const handleConfirmReIndex = async (params: any) => {
+      await reIndexDocument(params);
+      setReIndexModalOpen(false);
+      setDocToReIndex(null);
+  };
+
   return (
     <>
       {isUploadModalOpen && <UploadModal onClose={() => setUploadModalOpen(false)} />}
+      
       {docToDelete && (
         <DeleteConfirmModal 
           isOpen={!!docToDelete} 
@@ -96,6 +126,14 @@ const Documents: React.FC = () => {
           onConfirm={confirmDelete}
           documentName={docToDelete.name}
         />
+      )}
+
+      {isReIndexModalOpen && docToReIndex && (
+         <ReIndexModal 
+            document={docToReIndex} 
+            onClose={() => setReIndexModalOpen(false)} 
+            onConfirm={handleConfirmReIndex} 
+         />
       )}
 
       <PanelGroup direction="horizontal" className="w-full h-[calc(100vh-8rem)]">
@@ -113,11 +151,23 @@ const Documents: React.FC = () => {
             </header>
             
             {/* Filtros */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4 z-10 relative">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-4 mb-4 z-10 relative">
               <div className="relative">
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full h-full py-2 pl-10 pr-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-400" />
               </div>
+
+              {/* Selector de Vector Store */}
+              <Select
+                 options={vectorStores?.map(vs => ({ value: vs.id, label: vs.name }))}
+                 onChange={setSelectedStore}
+                 value={selectedStore}
+                 placeholder="Colección"
+                 styles={selectStyles}
+                 isClearable
+                 menuPortalTarget={document.body}
+              />
+              
               <Select 
                 options={[{ value: 'all', label: 'Todos' }, { value: 'processed', label: 'Procesados' }, { value: 'processing', label: 'Procesando' }, { value: 'failed', label: 'Fallidos' }]} 
                 onChange={setStatusFilter} 
@@ -146,7 +196,7 @@ const Documents: React.FC = () => {
                   <div className="flex flex-col items-center justify-center h-full p-10 text-center opacity-60">
                       <CloudArrowUp size={64} className="text-gray-600 mb-4"/>
                       <h3 className="text-xl font-bold text-gray-400">No hay documentos</h3>
-                      <p className="text-gray-500">Sube tu primer archivo para empezar.</p>
+                      <p className="text-gray-500">Sube tu primer archivo o selecciona otra colección.</p>
                   </div>
               ) : (
                 <DocumentTable 
@@ -154,7 +204,7 @@ const Documents: React.FC = () => {
                   onViewChunks={handleViewChunks} 
                   selectedDocId={selectedDocId} 
                   onDeleteRequest={handleDeleteRequest}
-                  onReIndex={() => {}} 
+                  onReIndex={handleReIndexClick}
                 />
               )}
             </div>

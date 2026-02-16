@@ -80,7 +80,6 @@ class GoogleService:
             logging.info(f"[ERROR] Chat completion falló: {e}")
             raise
 
-    # --- NUEVO MÉTODO PARA STREAMING ---
     def chat_stream_generator(
         self, 
         model: str = None, 
@@ -88,15 +87,16 @@ class GoogleService:
         system_instruction: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        thinking_budget: Optional[int] = None
-    ) -> Iterator[str]:
+        thinking_budget: Optional[int] = None,
+        thinking_level: Optional[str] = None
+    ) -> Iterator[dict]:
         """
-        Generador que cede (yields) tokens de texto a medida que llegan de Google.
+        Generador que cede tokens estructurados: {type: 'token'|'thought', content: str}
         """
-        config = self._build_gen_config(temperature, max_tokens, thinking_budget)
+        # Pasamos thinking_level
+        config = self._build_gen_config(temperature, max_tokens, thinking_budget, thinking_level)
 
         try:
-            # Usamos generate_content_stream
             response = self.client.models.generate_content_stream(
                 model=model,
                 contents=prompt,
@@ -104,17 +104,19 @@ class GoogleService:
             )
             
             for chunk in response:
-                # Dependiendo de la versión de la librería, el texto puede estar en chunk.text o chunk.parts[0].text
-                if hasattr(chunk, 'text') and chunk.text:
-                    yield chunk.text
-                elif hasattr(chunk, 'candidates') and chunk.candidates:
+                # La librería nueva de Google separa thoughts en part.thought
+                if hasattr(chunk, 'candidates') and chunk.candidates:
                      for part in chunk.candidates[0].content.parts:
                          if part.text:
-                             yield part.text
-
+                             # Detectar si es pensamiento
+                             is_thought = getattr(part, 'thought', False)
+                             yield {
+                                 "type": "thought" if is_thought else "token",
+                                 "content": part.text
+                             }
         except Exception as e:
             logging.error(f"[ERROR] Google Chat Stream falló: {e}")
-            yield f"\n[Error de generación: {str(e)}]"
+            yield {"type": "error", "content": str(e)}
 
     def generate_audio(self, text: str, voice_name: str = "Kore", model: str = None) -> bytes:
         """Generación de audio simple."""
@@ -144,17 +146,26 @@ class GoogleService:
             logging.info(f"[ERROR] TTS falló: {e}")
             raise
 
-    def _build_gen_config(self, temp, max_tokens, thinking_budget) -> types.GenerateContentConfig:
-        """Helper para construir la configuración, manejando thinking_budget solo si aplica."""
-        
-        # Configuración base
+    def _build_gen_config(self, temp, max_tokens, thinking_budget, thinking_level) -> types.GenerateContentConfig:
         conf = types.GenerateContentConfig(
             temperature=temp,
             max_output_tokens=max_tokens
         )
 
-        if thinking_budget is not None and thinking_budget > 0:
-            conf.thinking_config = types.ThinkingConfig(thinking_budget=thinking_budget)
+        # Lógica de Thinking según la documentación
+        # Si hay thinking_level (Gemini 3)
+        if thinking_level:
+            conf.thinking_config = types.ThinkingConfig(
+                include_thoughts=True,
+                thinking_level=thinking_level
+            )
+        # Si hay thinking_budget (Gemini 2.5)
+        elif thinking_budget is not None and thinking_budget > 0:
+            conf.thinking_config = types.ThinkingConfig(
+                include_thoughts=True, # Importante para ver el pensamiento
+                thinking_budget=thinking_budget
+            )
+        
         return conf
 
 google_service = GoogleService()

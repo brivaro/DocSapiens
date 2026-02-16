@@ -45,11 +45,19 @@ class ChatService:
                 system_instruction=system_inst,
                 temperature=request.temperature,
                 max_tokens=request.max_output_tokens,
-                thinking_budget=request.thinking_budget
+                thinking_budget=request.thinking_budget,
+                thinking_level=request.thinking_level
             )
 
-            for token in stream:
-                yield f"event: token\ndata: {json.dumps(token)}\n\n"
+            for item in stream:
+                if item["type"] == "error":
+                     yield f"event: error\ndata: {json.dumps(item['content'])}\n\n"
+                elif item["type"] == "thought":
+                     # NUEVO EVENTO PARA PENSAMIENTOS
+                     yield f"event: thought\ndata: {json.dumps(item['content'])}\n\n"
+                else:
+                     # EVENTO ESTÁNDAR DE RESPUESTA
+                     yield f"event: token\ndata: {json.dumps(item['content'])}\n\n"
 
         except Exception as e:
             logging.error(f"[Stream Error] {e}")

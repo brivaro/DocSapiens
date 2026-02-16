@@ -1,5 +1,5 @@
 import React from 'react';
-import { Robot } from 'phosphor-react';
+import { Gear } from 'phosphor-react';
 import Tooltip from '../ui/ToolTip';
 
 export interface Settings {
@@ -9,6 +9,7 @@ export interface Settings {
     top_k: number;
     max_output_tokens: number;
     thinking_budget: number;
+    thinking_level?: string; // 'low' | 'medium' | 'high'
 }
 
 interface Props {
@@ -17,6 +18,11 @@ interface Props {
 }
 
 const ChatSettingsPanel: React.FC<Props> = ({ settings, onSettingsChange }) => {
+    
+    // Detectar familia de modelo
+    const isGemini3 = settings.model.includes("gemini-3");
+    const isThinkingModel = settings.model.includes("gemini-2.5") || isGemini3;
+
     return (
         <div className="p-4 space-y-5">
             {/* Model Select */}
@@ -27,46 +33,80 @@ const ChatSettingsPanel: React.FC<Props> = ({ settings, onSettingsChange }) => {
                     onChange={e => onSettingsChange({ model: e.target.value })}
                     className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer"
                 >
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
                     <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                     <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
                     <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
                 </select>
             </div>
 
-            {/* Sliders */}
+            {/* Configuración Dinámica de Thinking */}
+            {isThinkingModel && (
+                <div className="bg-gray-700/30 p-3 rounded-lg border border-blue-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-bold text-blue-400 uppercase">Capacidad de Razonamiento</span>
+                    </div>
+
+                    {isGemini3 ? (
+                        // UI para Gemini 3: Niveles
+                        <div>
+                            <label className="text-xs text-gray-400 mb-1 block">Nivel de Pensamiento</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {['low', 'medium', 'high'].map(level => (
+                                    <button
+                                        key={level}
+                                        onClick={() => onSettingsChange({ thinking_level: level })}
+                                        className={`text-[10px] uppercase font-bold py-1.5 rounded border ${
+                                            settings.thinking_level === level 
+                                            ? 'bg-blue-600 border-blue-500 text-white' 
+                                            : 'bg-gray-800 border-gray-600 text-gray-400 hover:bg-gray-700'
+                                        }`}
+                                    >
+                                        {level}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        // UI para Gemini 2.5: Budget Slider
+                        <div>
+                             <label className="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5">
+                                Budget Tokens <Tooltip text="Tokens dedicados solo a pensar" />
+                                <span className="ml-auto font-bold text-blue-400 text-[10px] bg-blue-900/30 px-1.5 rounded">{settings.thinking_budget || 0}</span>
+                            </label>
+                            <input 
+                                type="range" 
+                                min="-1" 
+                                max="8192" 
+                                step="1024" 
+                                value={settings.thinking_budget || 0} 
+                                onChange={e => onSettingsChange({ thinking_budget: parseInt(e.target.value) })} 
+                                className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500" 
+                            />
+                            <p className="text-[10px] text-gray-500 mt-1">0 = Desactivado, -1 = Dinámico</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Sliders Standard */}
             <div>
                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5">
-                    Temperatura <Tooltip text="Creatividad vs Precisión" />
-                    <span className="ml-auto font-bold text-blue-400 text-[10px] bg-blue-900/30 px-1.5 rounded">{settings.temperature}</span>
+                    Temperatura
+                    <span className="ml-auto font-bold text-gray-400 text-[10px] bg-gray-800 px-1.5 rounded">{settings.temperature}</span>
                 </label>
-                <input type="range" min="0" max="2" step="0.1" value={settings.temperature} onChange={e => onSettingsChange({ temperature: parseFloat(e.target.value) })} className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+                <input type="range" min="0" max="2" step="0.1" value={settings.temperature} onChange={e => onSettingsChange({ temperature: parseFloat(e.target.value) })} className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-gray-500" />
             </div>
 
-            <div>
+             {/* ... System Instruction ... */}
+             <div>
                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5">
-                    Max Tokens <Tooltip text="Límite de respuesta" />
-                    <span className="ml-auto font-bold text-green-400 text-[10px] bg-green-900/30 px-1.5 rounded">{settings.max_output_tokens}</span>
-                </label>
-                <input type="range" min="64" max="65536" step="10" value={settings.max_output_tokens} onChange={e => onSettingsChange({ max_output_tokens: parseInt(e.target.value) })} className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-500" />
-            </div>
-            
-            {/* Inputs */}
-            <div>
-                <label className="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5">
-                    Thinking Budget <Tooltip text="Tokens para razonamiento (Solo modelos 2.5+)" />
-                </label>
-                <input type="number" step="128" value={settings.thinking_budget} onChange={e => onSettingsChange({ thinking_budget: parseInt(e.target.value) })} className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none" placeholder="e.g., 1024" />
-            </div>
-
-            <div>
-                <label className="flex items-center gap-2 text-xs font-semibold text-gray-400 mb-1.5">
-                    System Instruction <Tooltip text="Personalidad de la IA" />
+                    System Instruction
                 </label>
                 <textarea
                     value={settings.system_instruction}
                     onChange={e => onSettingsChange({ system_instruction: e.target.value })}
-                    placeholder="Eres un asistente útil..."
-                    className="w-full h-24 resize-none p-3 bg-gray-900 border border-gray-600 rounded-lg text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none scrollbar-thin scrollbar-thumb-gray-600 leading-relaxed"
+                    className="w-full h-20 p-2 bg-gray-900 border border-gray-600 rounded-lg text-xs text-white focus:ring-1 focus:ring-blue-500 outline-none resize-none"
                 />
             </div>
         </div>

@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Robot, User, Copy, Check, Books, WarningCircle, SpeakerHigh } from 'phosphor-react';
+import { Robot, User, Copy, Check, Books, WarningCircle, SpeakerHigh, CaretDown, CaretRight, Brain } from 'phosphor-react';
 import { clsx } from 'clsx';
 import { Message, Chunk } from '../../types/chat';
-import { useAppToast } from '../../hooks/useAppToast';
-import apiClient from '../../api/client';
 import { useTextToSpeech } from '../../hooks/useTextToSpeech';
 
 interface Props {
@@ -18,7 +16,8 @@ export const ChatBubble = ({ message, onViewSources }: Props) => {
     const isSystem = message.role === 'system';
     const [copied, setCopied] = useState(false);
     const { speak, isPlaying } = useTextToSpeech();
-    const toast = useAppToast();
+
+    const [isThinkingOpen, setIsThinkingOpen] = useState(false);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(message.content);
@@ -58,7 +57,33 @@ export const ChatBubble = ({ message, onViewSources }: Props) => {
                     : "bg-gray-800 border border-gray-700 text-gray-200 rounded-bl-none"
             )}>
 
-                {/* MARKDOWN CONTENT */}
+                {/* --- SECCIÓN DE PENSAMIENTO (THINKING PROCESS) --- */}
+                {/* Solo se muestra si no es usuario y si existen pensamientos */}
+                {!isUser && message.thoughts && (
+                    <div className="mb-4 border-b border-gray-700/50 pb-3">
+                        <button 
+                            onClick={() => setIsThinkingOpen(!isThinkingOpen)}
+                            className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors bg-gray-900/40 hover:bg-gray-900/60 px-3 py-2 rounded-lg w-full text-left border border-transparent hover:border-gray-700"
+                        >
+                            <Brain 
+                                size={16} 
+                                className={message.isStreaming ? "animate-pulse text-purple-400" : "text-gray-500"} 
+                            />
+                            <span>Proceso de Razonamiento</span>
+                            <span className="ml-auto opacity-70">
+                                {isThinkingOpen ? <CaretDown size={14}/> : <CaretRight size={14}/>}
+                            </span>
+                        </button>
+                        
+                        {isThinkingOpen && (
+                            <div className="mt-2 bg-gray-900/50 p-3 rounded-lg border-l-2 border-purple-500 text-gray-400 text-xs font-mono leading-relaxed whitespace-pre-wrap animate-fade-in shadow-inner max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600">
+                                {message.thoughts}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* MARKDOWN CONTENT (RESPUESTA FINAL) */}
                 <div className={clsx("prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-700")}>
                     <ReactMarkdown
                         remarkPlugins={[remarkGfm]}

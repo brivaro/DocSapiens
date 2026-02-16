@@ -1,6 +1,7 @@
 import React from 'react';
-import { Trash, FileText, DownloadSimple, Eye } from 'phosphor-react';
+import { Trash, FileText, DownloadSimple, Eye, ArrowsClockwise } from 'phosphor-react';
 import { clsx } from 'clsx';
+import { API_BASE_URL } from '../../api/client';
 
 interface TableDocument {
   id: string;
@@ -18,10 +19,10 @@ interface Props {
   onViewChunks: (docId: string) => void;
   selectedDocId: string | null;
   onDeleteRequest: (doc: { id: string; filename: string }) => void;
-  onReIndex?: () => void;
+  onReIndex: (docId: string) => void; // <--- DEFINIDO AQUÍ
 }
 
-export default function DocumentTable({ documents, onViewChunks, selectedDocId, onDeleteRequest }: Props) {
+export default function DocumentTable({ documents, onViewChunks, selectedDocId, onDeleteRequest, onReIndex }: Props) {
   if (documents.length === 0) {
     return (
         <div className="flex flex-col items-center justify-center p-12 text-gray-500 border-2 border-dashed border-gray-700 rounded-2xl bg-gray-800/30">
@@ -47,11 +48,12 @@ export default function DocumentTable({ documents, onViewChunks, selectedDocId, 
         <tbody className="divide-y divide-gray-700">
             {documents.map((doc) => (
                 <DocumentRow
-                key={doc.id}
-                doc={doc}
-                isSelected={selectedDocId === doc.id}
-                onViewChunks={onViewChunks}
-                onDeleteRequest={onDeleteRequest}
+                    key={doc.id}
+                    doc={doc}
+                    isSelected={selectedDocId === doc.id}
+                    onViewChunks={onViewChunks}
+                    onDeleteRequest={onDeleteRequest}
+                    onReIndex={onReIndex} // <--- PASADO AQUÍ
                 />
             ))}
         </tbody>
@@ -64,8 +66,9 @@ const DocumentRow: React.FC<{
     doc: TableDocument; 
     isSelected: boolean; 
     onViewChunks: (id: string) => void;
-    onDeleteRequest: (doc: { id: string; filename: string }) => void; 
-}> = ({ doc, isSelected, onViewChunks, onDeleteRequest }) => (
+    onDeleteRequest: (doc: { id: string; filename: string }) => void;
+    onReIndex: (id: string) => void; // <--- RECIBIDO AQUÍ
+}> = ({ doc, isSelected, onViewChunks, onDeleteRequest, onReIndex }) => (
   <tr className={`transition-colors ${isSelected ? 'bg-blue-900/20' : 'hover:bg-gray-700/30'}`}>
     {/* Nombre */}
     <td className="px-6 py-4 align-middle">
@@ -105,12 +108,22 @@ const DocumentRow: React.FC<{
                 <Eye size={18} weight={isSelected ? 'fill' : 'regular'}/>
             </button>
 
-            {/* Descargar */}
+            {/* Reindexar */}
+            <button
+                onClick={(e) => { e.stopPropagation(); onReIndex(doc.id); }}
+                className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
+                title="Re-Indexar"
+            >
+                <ArrowsClockwise size={18} />
+            </button>
+
+            {/* Descargar - URL Absoluta directa al backend */}
             <a 
-                href={`/api/v1/documents/${doc.id}/download`}
+                href={`${API_BASE_URL}/api/v1/documents/${doc.id}/download`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
                 title="Descargar Original"
-                download
             >
                 <DownloadSimple size={18} />
             </a>
@@ -145,7 +158,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const TagBadge = ({ tag }: { tag: string }) => {
-    // Función para obtener un color consistente
     const hash = tag.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
     const colors = [
         'bg-blue-900/30 text-blue-300 border-blue-500/30',

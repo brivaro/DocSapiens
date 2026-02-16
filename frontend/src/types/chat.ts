@@ -12,6 +12,7 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  thoughts?: string;
   chunks?: Chunk[];
   isStreaming?: boolean;
   error?: boolean;
@@ -27,10 +28,11 @@ export interface ChatRequestParams {
   model?: string;
   system_instruction?: string;
   temperature?: number;
-  top_k?: number;
+  top_p?: number;
   task_type?: string;
   max_output_tokens?: number;
   thinking_budget?: number;
+  thinking_level?: string;
 }
 
 export interface ChatHistoryItem {
