@@ -14,7 +14,7 @@ class ChatRequest(BaseModel):
     system_instruction: Optional[str] = Field(None, description="Instrucción del sistema para el modelo.")
     task_type: Optional[str] = Field("RETRIEVAL_QUERY", description="Tipo de tarea para el embedding (RETRIEVAL_QUERY, SEMANTIC_SIMILARITY, etc)")
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
-    top_k: Optional[int] = Field(None, gt=0, description="Número de tokens a considerar para la selección de palabras más probables.")
+    top_p: Optional[float] = Field(None, ge=0.0, le=1.0, description="Número de tokens a considerar para la selección de palabras más probables.")
     max_output_tokens: Optional[int] = Field(None, gt=0, description="Máximo de tokens en la respuesta.")
     thinking_budget: Optional[int] = Field(None, ge=0, description="Presupuesto para la función de 'pensamiento' del modelo. 0 la deshabilita. -1 es dinámico.")
     thinking_level: Optional[str] = Field(None, description="low, medium, high (Solo Gemini 3)")

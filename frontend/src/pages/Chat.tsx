@@ -89,7 +89,7 @@ export default function Chat() {
         model: 'gemini-2.0-flash',
         system_instruction: 'Eres un asistente útil y preciso. Responde basándote estrictamente en el contexto proporcionado.', 
         temperature: 1, 
-        top_k: 40, 
+        top_p: 0.95,
         max_output_tokens: 2000, 
         thinking_budget: 0
     });
@@ -117,7 +117,7 @@ export default function Chat() {
             model: settings.model,
             system_instruction: settings.system_instruction,
             temperature: settings.temperature,
-            top_k: settings.top_k,
+            top_p: settings.top_p,
             max_output_tokens: settings.max_output_tokens,
             thinking_budget: settings.thinking_budget
         };

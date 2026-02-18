@@ -46,7 +46,8 @@ class ChatService:
                 temperature=request.temperature,
                 max_tokens=request.max_output_tokens,
                 thinking_budget=request.thinking_budget,
-                thinking_level=request.thinking_level
+                thinking_level=request.thinking_level,
+                top_p=request.top_p
             )
 
             for item in stream:

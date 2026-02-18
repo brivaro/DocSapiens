@@ -88,13 +88,14 @@ class GoogleService:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         thinking_budget: Optional[int] = None,
-        thinking_level: Optional[str] = None
+        thinking_level: Optional[str] = None,
+        top_p: Optional[float] = None
     ) -> Iterator[dict]:
         """
         Generador que cede tokens estructurados: {type: 'token'|'thought', content: str}
         """
         # Pasamos thinking_level
-        config = self._build_gen_config(temperature, max_tokens, thinking_budget, thinking_level)
+        config = self._build_gen_config(temperature, max_tokens, thinking_budget, thinking_level, top_p)
 
         try:
             response = self.client.models.generate_content_stream(
@@ -146,10 +147,11 @@ class GoogleService:
             logging.info(f"[ERROR] TTS falló: {e}")
             raise
 
-    def _build_gen_config(self, temp, max_tokens, thinking_budget, thinking_level) -> types.GenerateContentConfig:
+    def _build_gen_config(self, temp, max_tokens, thinking_budget, thinking_level, top_p) -> types.GenerateContentConfig:
         conf = types.GenerateContentConfig(
             temperature=temp,
-            max_output_tokens=max_tokens
+            max_output_tokens=max_tokens,
+            top_p=top_p
         )
 
         # Lógica de Thinking según la documentación
